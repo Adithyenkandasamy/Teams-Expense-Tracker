@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     )
 
     # Firebase
+    firebase_credentials_json: str | None = Field(
+        default=None, alias="FIREBASE_CREDENTIALS_JSON"
+    )
     firebase_credentials_path: str | None = Field(
         default=None, alias="FIREBASE_CREDENTIALS_PATH"
     )

@@ -15,8 +15,21 @@ def get_firebase_app() -> firebase_admin.App:
     global _firebase_app
     if _firebase_app is None:
         settings = get_settings()
-        path = settings.firebase_credentials_path
-        if path:
+        cred = None
+
+        # 1. Direct JSON string (ideal for Vercel/serverless deployments)
+        if settings.firebase_credentials_json:
+            import json
+            try:
+                cert_dict = json.loads(settings.firebase_credentials_json)
+                cred = credentials.Certificate(cert_dict)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error parsing FIREBASE_CREDENTIALS_JSON: {e}")
+
+        # 2. File path on disk
+        if cred is None and settings.firebase_credentials_path:
+            path = settings.firebase_credentials_path
             if not os.path.isabs(path):
                 candidates = [
                     os.path.abspath(path),
@@ -27,10 +40,13 @@ def get_firebase_app() -> firebase_admin.App:
                     if os.path.exists(candidate):
                         path = candidate
                         break
-        if path and os.path.exists(path):
-            cred = credentials.Certificate(path)
-        elif (
-            settings.firebase_project_id
+            if os.path.exists(path):
+                cred = credentials.Certificate(path)
+
+        # 3. Separate environment variables
+        if (
+            cred is None
+            and settings.firebase_project_id
             and settings.firebase_private_key
             and settings.firebase_client_email
         ):
@@ -43,16 +59,15 @@ def get_firebase_app() -> firebase_admin.App:
                     "token_uri": "https://oauth2.googleapis.com/token",
                 }
             )
-        else:
-            try:
-                cred = credentials.ApplicationDefault()
-            except Exception:
-                cred = None
 
         if cred is not None:
             _firebase_app = firebase_admin.initialize_app(cred)
         else:
-            _firebase_app = firebase_admin.initialize_app()
+            try:
+                default_cred = credentials.ApplicationDefault()
+                _firebase_app = firebase_admin.initialize_app(default_cred)
+            except Exception:
+                _firebase_app = firebase_admin.initialize_app()
     return _firebase_app
 
 
