@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -42,33 +43,82 @@ export default function PaymentReviewScreen() {
     queryKey: ["expenseDetail", expenseId],
     queryFn: () => getExpenseDetail(expenseId),
     enabled: !!expenseId,
+    refetchInterval: 2500, // Live auto-refresh polling every 2.5s
   });
 
   const approveMutation = useMutation({
     mutationFn: (splitId: string) => approvePayment(splitId),
-    onSuccess: () => {
+    onSuccess: async (_, splitId) => {
       setModalType(null);
       setSelectedSplit(null);
-      queryClient.invalidateQueries({ queryKey: ["expenseDetail", expenseId] });
+
+      // Optimistically update query data to remove the split immediately
+      queryClient.setQueryData(["expenseDetail", expenseId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          splits: old.splits?.map((s: any) =>
+            s.id === splitId
+              ? { ...s, status: "PAID", paid_at: new Date().toISOString() }
+              : s
+          ),
+        };
+      });
+
+      await queryClient.refetchQueries({ queryKey: ["expenseDetail", expenseId] });
       queryClient.invalidateQueries({ queryKey: ["allExpenses"] });
-      Alert.alert("Approved", "Payment has been accepted and marked as PAID.");
+      queryClient.invalidateQueries({ queryKey: ["groupExpenses"] });
+      queryClient.invalidateQueries({ queryKey: ["groupBalances"] });
+
+      if (Platform.OS !== "web") {
+        Alert.alert("Approved", "Payment has been accepted and marked as PAID.");
+      }
     },
     onError: (err: any) => {
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to approve payment");
+      const msg = err?.response?.data?.message || err?.message || "Failed to approve payment";
+      if (Platform.OS === "web") {
+        window.alert(`Error: ${msg}`);
+      } else {
+        Alert.alert("Error", msg);
+      }
     },
   });
 
   const rejectMutation = useMutation({
     mutationFn: (splitId: string) => rejectPayment(splitId),
-    onSuccess: () => {
+    onSuccess: async (_, splitId) => {
       setModalType(null);
       setSelectedSplit(null);
-      queryClient.invalidateQueries({ queryKey: ["expenseDetail", expenseId] });
+
+      // Optimistically update query data
+      queryClient.setQueryData(["expenseDetail", expenseId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          splits: old.splits?.map((s: any) =>
+            s.id === splitId
+              ? { ...s, status: "REJECTED", payment_submitted_at: null }
+              : s
+          ),
+        };
+      });
+
+      await queryClient.refetchQueries({ queryKey: ["expenseDetail", expenseId] });
       queryClient.invalidateQueries({ queryKey: ["allExpenses"] });
-      Alert.alert("Rejected", "Payment has been rejected. The user has been notified to re-submit.");
+      queryClient.invalidateQueries({ queryKey: ["groupExpenses"] });
+      queryClient.invalidateQueries({ queryKey: ["groupBalances"] });
+
+      if (Platform.OS !== "web") {
+        Alert.alert("Rejected", "Payment has been rejected. The user has been notified to re-submit.");
+      }
     },
     onError: (err: any) => {
-      Alert.alert("Error", err?.response?.data?.message || err?.message || "Failed to reject payment");
+      const msg = err?.response?.data?.message || err?.message || "Failed to reject payment";
+      if (Platform.OS === "web") {
+        window.alert(`Error: ${msg}`);
+      } else {
+        Alert.alert("Error", msg);
+      }
     },
   });
 
@@ -112,7 +162,6 @@ export default function PaymentReviewScreen() {
             router.replace(`/expenses/${expenseId}` as any);
           }
         }}
-
       />
 
       <ScrollView
@@ -120,6 +169,22 @@ export default function PaymentReviewScreen() {
         contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={colors.primary} />}
       >
+        {/* Live Auto-Refresh Bar */}
+        <View style={styles.liveBar}>
+          <View style={styles.liveIndicator}>
+            <View style={styles.livePulseDot} />
+            <Text style={styles.liveText}>Live Auto-Refresh Active</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={() => refetch()}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={14} color={colors.primary} />
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color={colors.info} />
           <Text style={styles.infoBannerText}>
@@ -131,9 +196,15 @@ export default function PaymentReviewScreen() {
           <EmptyState
             icon="checkmark-done-circle-outline"
             title="All Caught Up!"
-            description="There are no pending payment submissions awaiting your approval."
+            description="There are no pending payment submissions awaiting your approval. Any new submissions appear here automatically."
             actionTitle="Return to Expense"
-            onAction={() => router.back()}
+            onAction={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace(`/expenses/${expenseId}` as any);
+              }
+            }}
           />
         ) : (
           submittedSplits.map((split) => {
@@ -356,5 +427,47 @@ const styles = StyleSheet.create({
   },
   btnCol: {
     flex: 1,
+  },
+  liveBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  liveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  livePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success,
+  },
+  liveText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  refreshButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primaryMuted,
+  },
+  refreshButtonText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "600",
   },
 });

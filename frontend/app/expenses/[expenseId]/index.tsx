@@ -49,6 +49,7 @@ export default function ExpenseDetailScreen() {
     queryKey: ["expenseDetail", expenseId],
     queryFn: () => getExpenseDetail(expenseId),
     enabled: !!expenseId,
+    refetchInterval: 3000,
   });
 
   // Close expense mutation (only allowed for Expense Leader when READY_TO_CLOSE)
@@ -222,10 +223,38 @@ export default function ExpenseDetailScreen() {
           </View>
         )}
 
+        {/* Member Pending Review Status Banner */}
+        {mySplit?.status === "PAYMENT_SUBMITTED" && !isExpenseLeader && (
+          <View style={styles.mySubmittedBanner}>
+            <Ionicons name="time-outline" size={20} color={colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.mySubmittedTitle}>Payment Pending Review</Text>
+              <Text style={styles.mySubmittedSub}>
+                You submitted confirmation for {formatINR(mySplit.amount)}. Waiting for {expense.creator?.name || "Expense Leader"} to verify and accept.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Member Paid Status Banner */}
+        {mySplit?.status === "PAID" && !isExpenseLeader && (
+          <View style={styles.myPaidBanner}>
+            <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.myPaidTitle}>Your Share Settled</Text>
+              <Text style={styles.myPaidSub}>
+                Your payment of {formatINR(mySplit.amount)} has been approved and marked as paid.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {hasSubmissionsToReview && (
           <View style={styles.actionSection}>
             <Button
-              title="Review Submitted Payments"
+              title={`Review Submitted Payments (${
+                expense.splits?.filter((s) => s.status === "PAYMENT_SUBMITTED").length || 0
+              })`}
               icon={<Ionicons name="shield-checkmark-outline" size={18} color={colors.textInverse} />}
               onPress={() => router.push(`/expenses/${expense.id}/review` as any)}
               variant="secondary"
@@ -404,5 +433,49 @@ const styles = StyleSheet.create({
     ...typography.h3,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
+  },
+  mySubmittedBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.35)",
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  mySubmittedTitle: {
+    ...typography.body2,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  mySubmittedSub: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  myPaidBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.35)",
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  myPaidTitle: {
+    ...typography.body2,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  myPaidSub: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+    lineHeight: 16,
   },
 });

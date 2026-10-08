@@ -2,6 +2,7 @@
  * Splits and payments API module.
  */
 
+import { Platform } from "react-native";
 import { apiClient } from "./client";
 import { ExpenseSplit } from "../types/models";
 import { PaymentActionPayload } from "../types/api";
@@ -12,20 +13,28 @@ export async function submitPayment(
 ): Promise<ExpenseSplit> {
   if (proofFileUri) {
     const formData = new FormData();
-    formData.append("file", {
-      uri: proofFileUri,
-      name: "payment_proof.jpg",
-      type: "image/jpeg",
-    } as any);
+    if (Platform.OS === "web") {
+      const res = await fetch(proofFileUri);
+      const blob = await res.blob();
+      formData.append("file", blob, "payment_proof.jpg");
+    } else {
+      formData.append("file", {
+        uri: proofFileUri,
+        name: "payment_proof.jpg",
+        type: "image/jpeg",
+      } as any);
+    }
 
     const response = await apiClient.post<ExpenseSplit>(
       `/splits/${splitId}/payment`,
       formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      Platform.OS === "web"
+        ? undefined
+        : {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
     );
     return response.data;
   }

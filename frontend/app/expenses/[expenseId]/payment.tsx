@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,7 +19,7 @@ import { getExpenseDetail } from "../../../src/api/expenses";
 import { submitPayment } from "../../../src/api/splits";
 import { useAuthStore } from "../../../src/store/authStore";
 import { colors, spacing, typography } from "../../../src/theme/colors";
-import { formatINR } from "../../../src/utils/formatters";
+import { formatINR, formatDateTime } from "../../../src/utils/formatters";
 import { launchUpiPayment } from "../../../src/utils/upi";
 import { Header } from "../../../src/components/common/Header";
 import { Button } from "../../../src/components/common/Button";
@@ -34,14 +35,18 @@ export default function PaymentScreen() {
   const [proofImage, setProofImage] = useState<string | null>(null);
   const [upiOpened, setUpiOpened] = useState(false);
 
-  const { data: expense, isLoading } = useQuery({
+  const { data: expense, isLoading, refetch } = useQuery({
     queryKey: ["expenseDetail", expenseId],
     queryFn: () => getExpenseDetail(expenseId),
     enabled: !!expenseId,
+    refetchInterval: 3000,
   });
 
   const mySplit = expense?.splits?.find((s) => s.user_id === currentUserId);
   const leader = expense?.creator;
+
+  const isSubmitted = mySplit?.status === "PAYMENT_SUBMITTED";
+  const isPaid = mySplit?.status === "PAID";
 
   // Submit payment confirmation mutation
   const submitMutation = useMutation({
@@ -49,25 +54,79 @@ export default function PaymentScreen() {
       if (!mySplit?.id) throw new Error("No pending split found");
       return await submitPayment(mySplit.id, proofImage || undefined);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenseDetail", expenseId] });
+    onSuccess: async () => {
+      queryClient.setQueryData(["expenseDetail", expenseId], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          splits: old.splits?.map((s: any) =>
+            s.id === mySplit?.id
+              ? {
+                  ...s,
+                  status: "PAYMENT_SUBMITTED",
+                  payment_submitted_at: new Date().toISOString(),
+                }
+              : s
+          ),
+        };
+      });
+      await queryClient.refetchQueries({ queryKey: ["expenseDetail", expenseId] });
       queryClient.invalidateQueries({ queryKey: ["allExpenses"] });
-      Alert.alert(
-        "Payment Submitted",
-        "Your payment confirmation has been submitted to the Expense Leader for approval.",
-        [
-          {
-            text: "Done",
-            onPress: () => router.replace(`/expenses/${expenseId}` as any),
-          },
-        ]
-      );
+      queryClient.invalidateQueries({ queryKey: ["groupExpenses"] });
+
+      if (Platform.OS === "web") {
+        window.alert(
+          "Payment Submitted!\nYour confirmation was sent to the Expense Leader for approval."
+        );
+        router.replace(`/expenses/${expenseId}` as any);
+      } else {
+        Alert.alert(
+          "Payment Submitted",
+          "Your payment confirmation has been submitted to the Expense Leader for approval.",
+          [
+            {
+              text: "Done",
+              onPress: () => router.replace(`/expenses/${expenseId}` as any),
+            },
+          ]
+        );
+      }
     },
     onError: (err: any) => {
-      Alert.alert(
-        "Submission Error",
-        err?.response?.data?.message || err?.message || "Failed to submit payment confirmation."
-      );
+      const msg = err?.response?.data?.message || err?.message || "";
+      if (
+        msg.includes("PAYMENT_SUBMITTED") ||
+        msg.includes("PAID") ||
+        msg.includes("Cannot submit payment")
+      ) {
+        queryClient.invalidateQueries({ queryKey: ["expenseDetail", expenseId] });
+        if (Platform.OS === "web") {
+          window.alert(
+            "Already Submitted!\nThis payment confirmation was already submitted and is awaiting leader approval."
+          );
+          router.replace(`/expenses/${expenseId}` as any);
+        } else {
+          Alert.alert(
+            "Already Submitted",
+            "This payment confirmation was already submitted and is awaiting leader approval.",
+            [
+              {
+                text: "View Expense",
+                onPress: () => router.replace(`/expenses/${expenseId}` as any),
+              },
+            ]
+          );
+        }
+        return;
+      }
+      if (Platform.OS === "web") {
+        window.alert(`Submission Error\n${msg || "Failed to submit payment confirmation."}`);
+      } else {
+        Alert.alert(
+          "Submission Error",
+          msg || "Failed to submit payment confirmation."
+        );
+      }
     },
   });
 
@@ -180,58 +239,118 @@ export default function PaymentScreen() {
           </View>
         </View>
 
-        {/* UPI Payment Trigger */}
-        <View style={styles.section}>
-          <Button
-            title="Pay with UPI"
-            icon={<Ionicons name="flash-outline" size={20} color={colors.textInverse} />}
-            onPress={handleLaunchUpi}
-            variant="primary"
-          />
-
-          <View style={styles.noticeBox}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.warning} />
-            <Text style={styles.noticeText}>
-              IMPORTANT: Opening UPI does NOT automatically mark the expense as paid.
-              After completing the transfer, submit your confirmation below so the Expense Leader can verify it.
-            </Text>
-          </View>
-        </View>
-
-        {/* Payment Proof Section */}
-        <View style={styles.section}>
-          <Text style={styles.cardHeader}>Payment Proof (Optional)</Text>
-          {proofImage ? (
-            <View style={styles.proofPreview}>
-              <Image source={{ uri: proofImage }} style={styles.proofImg} />
-              <TouchableOpacity
-                style={styles.removeProofBtn}
-                onPress={() => setProofImage(null)}
-              >
-                <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                <Text style={styles.removeProofText}>Remove</Text>
-              </TouchableOpacity>
+        {/* Payment Status Alerts */}
+        {isSubmitted && (
+          <View style={styles.statusBannerSubmitted}>
+            <Ionicons name="time" size={24} color={colors.warning} />
+            <View style={styles.statusBannerTextContainer}>
+              <Text style={styles.statusBannerTitle}>Payment Submitted & Pending Review</Text>
+              <Text style={styles.statusBannerSub}>
+                Your payment confirmation was recorded. The Expense Leader ({leader?.name || "Leader"}) has been notified to verify and accept it.
+              </Text>
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.uploadBtn}
-              onPress={handlePickProof}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="image-outline" size={22} color={colors.primary} />
-              <Text style={styles.uploadBtnText}>Upload Screenshot / Receipt</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
+
+        {isPaid && (
+          <View style={styles.statusBannerPaid}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+            <View style={styles.statusBannerTextContainer}>
+              <Text style={styles.statusBannerTitle}>Payment Verified & Settled!</Text>
+              <Text style={styles.statusBannerSub}>
+                Your share of {formatINR(mySplit.amount)} has been approved by {leader?.name || "Leader"}.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* UPI Payment Trigger (Hidden if already submitted or paid) */}
+        {!isSubmitted && !isPaid && (
+          <View style={styles.section}>
+            <Button
+              title="Pay with UPI"
+              icon={<Ionicons name="flash-outline" size={20} color={colors.textInverse} />}
+              onPress={handleLaunchUpi}
+              variant="primary"
+            />
+
+            <View style={styles.noticeBox}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.warning} />
+              <Text style={styles.noticeText}>
+                IMPORTANT: Opening UPI does NOT automatically mark the expense as paid.
+                After completing the transfer, submit your confirmation below so the Expense Leader can verify it.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Payment Proof Section (Hidden if already submitted or paid) */}
+        {!isSubmitted && !isPaid && (
+          <View style={styles.section}>
+            <Text style={styles.cardHeader}>Payment Proof (Optional)</Text>
+            {proofImage ? (
+              <View style={styles.proofPreview}>
+                <Image source={{ uri: proofImage }} style={styles.proofImg} />
+                <TouchableOpacity
+                  style={styles.removeProofBtn}
+                  onPress={() => setProofImage(null)}
+                >
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                  <Text style={styles.removeProofText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.uploadBtn}
+                onPress={handlePickProof}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="image-outline" size={22} color={colors.primary} />
+                <Text style={styles.uploadBtnText}>Upload Screenshot / Receipt</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Submit Confirmation Button */}
         <View style={styles.submitSection}>
-          <Button
-            title="I Have Completed Payment"
-            variant="secondary"
-            loading={submitMutation.isPending}
-            onPress={() => submitMutation.mutate()}
-          />
+          {isSubmitted ? (
+            <View style={{ gap: spacing.md }}>
+              <Button
+                title="Submitted — Awaiting Approval"
+                variant="secondary"
+                disabled
+                onPress={() => {}}
+              />
+              <Button
+                title="Return to Expense"
+                variant="outline"
+                onPress={() => router.replace(`/expenses/${expenseId}` as any)}
+              />
+            </View>
+          ) : isPaid ? (
+            <View style={{ gap: spacing.md }}>
+              <Button
+                title="Payment Settled (Paid)"
+                variant="primary"
+                disabled
+                onPress={() => {}}
+              />
+              <Button
+                title="Return to Expense"
+                variant="outline"
+                onPress={() => router.replace(`/expenses/${expenseId}` as any)}
+              />
+            </View>
+          ) : (
+            <Button
+              title="I Have Completed Payment"
+              variant="secondary"
+              loading={submitMutation.isPending}
+              disabled={submitMutation.isPending}
+              onPress={() => submitMutation.mutate()}
+            />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -369,5 +488,41 @@ const styles = StyleSheet.create({
   },
   submitSection: {
     marginTop: spacing.sm,
+  },
+  statusBannerSubmitted: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(245, 158, 11, 0.4)",
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  statusBannerPaid: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+    backgroundColor: "rgba(16, 185, 129, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(16, 185, 129, 0.4)",
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  statusBannerTextContainer: {
+    flex: 1,
+  },
+  statusBannerTitle: {
+    ...typography.body1,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  statusBannerSub: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });

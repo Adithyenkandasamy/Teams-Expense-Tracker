@@ -85,6 +85,13 @@ class Settings(BaseSettings):
                 if json_files:
                     data["FIREBASE_CREDENTIALS_PATH"] = json_files[0]
 
+            # Auto-detect Cloudinary cloud name if set as CLOUDINARY_FOLDER or missing
+            if not data.get("CLOUDINARY_CLOUD_NAME") or data.get("CLOUDINARY_CLOUD_NAME") == "demo":
+                if data.get("CLOUDINARY_FOLDER"):
+                    data["CLOUDINARY_CLOUD_NAME"] = data["CLOUDINARY_FOLDER"]
+                else:
+                    data["CLOUDINARY_CLOUD_NAME"] = "jgfbygec"
+
         return data
 
 

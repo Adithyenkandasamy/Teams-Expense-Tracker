@@ -24,26 +24,37 @@ export async function createExpense(
   return response.data;
 }
 
+import { Platform } from "react-native";
+
 export async function uploadReceipt(
   expenseId: string,
   fileUri: string,
   fileName?: string
 ): Promise<Expense> {
   const formData = new FormData();
-  formData.append("file", {
-    uri: fileUri,
-    name: fileName || "receipt.jpg",
-    type: "image/jpeg",
-  } as any);
+
+  if (Platform.OS === "web") {
+    const res = await fetch(fileUri);
+    const blob = await res.blob();
+    formData.append("file", blob, fileName || "receipt.jpg");
+  } else {
+    formData.append("file", {
+      uri: fileUri,
+      name: fileName || "receipt.jpg",
+      type: "image/jpeg",
+    } as any);
+  }
 
   const response = await apiClient.post<Expense>(
     `/expenses/${expenseId}/receipt`,
     formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
+    Platform.OS === "web"
+      ? undefined
+      : {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
   );
   return response.data;
 }
