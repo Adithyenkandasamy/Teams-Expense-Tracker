@@ -7,6 +7,8 @@ import {
   RefreshControl,
   TouchableOpacity,
   Alert,
+  Image,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -49,7 +51,8 @@ export default function ExpenseDetailScreen() {
     queryKey: ["expenseDetail", expenseId],
     queryFn: () => getExpenseDetail(expenseId),
     enabled: !!expenseId,
-    refetchInterval: 3000,
+    refetchInterval: 6000,
+    refetchIntervalInBackground: false,
   });
 
   // Close expense mutation (only allowed for Expense Leader when READY_TO_CLOSE)
@@ -125,7 +128,6 @@ export default function ExpenseDetailScreen() {
             router.replace("/(tabs)/expenses" as any);
           }
         }}
-
       />
 
       <ScrollView
@@ -182,16 +184,22 @@ export default function ExpenseDetailScreen() {
             </Text>
           </View>
 
-          {/* Receipt View Button */}
+          {/* Receipt Preview Thumbnail Card */}
           {expense.receipt_url && (
             <TouchableOpacity
-              style={styles.receiptButton}
+              style={styles.receiptPreviewContainer}
               onPress={() => setReceiptVisible(true)}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <Ionicons name="receipt-outline" size={16} color={colors.primary} />
-              <Text style={styles.receiptButtonText}>View Attached Receipt</Text>
-              <Ionicons name="open-outline" size={14} color={colors.primary} />
+              <Image source={{ uri: expense.receipt_url }} style={styles.receiptPreviewImage} />
+              <View style={styles.receiptPreviewMeta}>
+                <View style={styles.receiptPreviewBadge}>
+                  <Ionicons name="receipt" size={14} color={colors.primary} />
+                  <Text style={styles.receiptPreviewBadgeText}>Attached Bill Receipt</Text>
+                </View>
+                <Text style={styles.receiptPreviewTapHint}>Tap to view full receipt image</Text>
+              </View>
+              <Ionicons name="expand-outline" size={18} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
@@ -381,20 +389,41 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
-  receiptButton: {
+  receiptPreviewContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 10,
-    padding: spacing.md,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    padding: spacing.sm,
     marginTop: spacing.md,
-    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    gap: spacing.md,
   },
-  receiptButtonText: {
+  receiptPreviewImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+  },
+  receiptPreviewMeta: {
+    flex: 1,
+  },
+  receiptPreviewBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  receiptPreviewBadgeText: {
     ...typography.caption,
     color: colors.primary,
     fontWeight: "700",
+  },
+  receiptPreviewTapHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
   },
   leaderBanner: {
     backgroundColor: "rgba(16, 185, 129, 0.08)",

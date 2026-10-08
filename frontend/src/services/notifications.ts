@@ -33,8 +33,8 @@ if (!isExpoGo || Platform.OS === "web") {
  * Requests push notification permissions and registers device token with FastAPI backend.
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (isExpoGo || !Notifications) {
-    // In Expo Go, push notifications are not supported in SDK 53+.
+  if (Platform.OS === "web" || isExpoGo || !Notifications) {
+    // Push notifications are not configured on Web or Expo Go
     return null;
   }
 

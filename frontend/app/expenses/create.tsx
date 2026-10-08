@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -145,7 +146,10 @@ export default function CreateExpenseScreen() {
       // If receipt attached, upload it through backend/Cloudinary flow
       if (receiptImage) {
         try {
-          await uploadReceipt(created.id, receiptImage);
+          const updated = await uploadReceipt(created.id, receiptImage);
+          if (updated?.receipt_url) {
+            created.receipt_url = updated.receipt_url;
+          }
         } catch (uploadErr) {
           console.warn("Receipt upload error:", uploadErr);
         }
@@ -157,12 +161,18 @@ export default function CreateExpenseScreen() {
       queryClient.invalidateQueries({ queryKey: ["groupExpenses", selectedGroupId] });
       queryClient.invalidateQueries({ queryKey: ["allExpenses"] });
       queryClient.invalidateQueries({ queryKey: ["groupBalances", selectedGroupId] });
-      Alert.alert("Success", "Expense created successfully!", [
-        {
-          text: "View Expense",
-          onPress: () => router.replace(`/expenses/${created.id}` as any),
-        },
-      ]);
+      queryClient.invalidateQueries({ queryKey: ["expenseDetail", created.id] });
+
+      if (Platform.OS === "web") {
+        router.replace(`/expenses/${created.id}` as any);
+      } else {
+        Alert.alert("Success", "Expense created successfully!", [
+          {
+            text: "View Expense",
+            onPress: () => router.replace(`/expenses/${created.id}` as any),
+          },
+        ]);
+      }
     },
     onError: (err: any) => {
       Alert.alert(

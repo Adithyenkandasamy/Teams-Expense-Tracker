@@ -43,7 +43,8 @@ export default function PaymentReviewScreen() {
     queryKey: ["expenseDetail", expenseId],
     queryFn: () => getExpenseDetail(expenseId),
     enabled: !!expenseId,
-    refetchInterval: 2500, // Live auto-refresh polling every 2.5s
+    refetchInterval: 6000,
+    refetchIntervalInBackground: false,
   });
 
   const approveMutation = useMutation({

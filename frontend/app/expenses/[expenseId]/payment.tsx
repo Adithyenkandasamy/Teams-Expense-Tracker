@@ -39,7 +39,8 @@ export default function PaymentScreen() {
     queryKey: ["expenseDetail", expenseId],
     queryFn: () => getExpenseDetail(expenseId),
     enabled: !!expenseId,
-    refetchInterval: 3000,
+    refetchInterval: 6000,
+    refetchIntervalInBackground: false,
   });
 
   const mySplit = expense?.splits?.find((s) => s.user_id === currentUserId);

@@ -31,6 +31,8 @@ export default function GroupExpensesScreen() {
     queryKey: ["groupExpenses", groupId],
     queryFn: () => getGroupExpenses(groupId),
     enabled: !!groupId,
+    refetchInterval: 6000,
+    refetchIntervalInBackground: false,
   });
 
   return (
