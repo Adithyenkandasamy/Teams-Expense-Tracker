@@ -19,9 +19,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan — start background workers on startup."""
+    """Application lifespan — start background workers on startup (non-serverless)."""
+    import os
     logger.info("Starting application")
-    await start_background_workers()
+    if not os.environ.get("VERCEL"):
+        await start_background_workers()
     yield
     logger.info("Shutting down application")
 
