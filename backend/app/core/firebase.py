@@ -1,5 +1,6 @@
 """Firebase Admin SDK initialization and token verification."""
 
+import json
 import os
 
 import firebase_admin
@@ -19,9 +20,10 @@ def get_firebase_app() -> firebase_admin.App:
 
         # 1. Direct JSON string (ideal for Vercel/serverless deployments)
         if settings.firebase_credentials_json:
-            import json
             try:
                 cert_dict = json.loads(settings.firebase_credentials_json)
+                if isinstance(cert_dict.get("private_key"), str) and "\\n" in cert_dict["private_key"]:
+                    cert_dict["private_key"] = cert_dict["private_key"].replace("\\n", "\n")
                 cred = credentials.Certificate(cert_dict)
             except Exception as e:
                 import logging
