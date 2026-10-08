@@ -46,6 +46,7 @@ class Settings(BaseSettings):
 
     # Environment
     environment: str = Field(default="development", alias="ENVIRONMENT")
+    debug: bool = Field(default=True, alias="DEBUG")
 
     model_config = {
         "env_file": ".env",

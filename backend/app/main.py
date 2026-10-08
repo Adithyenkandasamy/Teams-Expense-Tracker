@@ -32,10 +32,18 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     settings = get_settings()
 
+    is_production = settings.environment.lower() == "production" or not settings.debug
+    docs_url = None if is_production else "/docs"
+    redoc_url = None if is_production else "/redoc"
+    openapi_url = None if is_production else "/openapi.json"
+
     app = FastAPI(
         title="Roommate Expense Tracker API",
         description="Backend API for a roommate expense-sharing mobile application",
         version="1.0.0",
+        docs_url=docs_url,
+        redoc_url=redoc_url,
+        openapi_url=openapi_url,
         lifespan=lifespan,
     )
 

@@ -44,14 +44,14 @@ export default function GroupsScreen() {
               onPress={() => router.push("/groups/join")}
               activeOpacity={0.7}
             >
-              <Ionicons name="enter-outline" size={20} color={colors.primary} />
+              <Ionicons name="enter-outline" size={18} color={colors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconBtn}
               onPress={() => router.push("/groups/create")}
               activeOpacity={0.7}
             >
-              <Ionicons name="add" size={22} color={colors.primary} />
+              <Ionicons name="add" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         }
@@ -121,10 +121,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
   },
