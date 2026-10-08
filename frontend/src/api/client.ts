@@ -10,15 +10,15 @@ import { getStoredToken } from "../services/storage";
 
 // Default to emulator/localhost/LAN IP
 const getDefaultApiUrl = () => {
-  // If explicitly configured to a remote/non-localhost domain, use it
-  const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+  // If explicitly configured, strip any trailing slash
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
+  if (envUrl) {
     return envUrl;
   }
 
-  // On Web, localhost:8000 works directly
+  // On Web, default to localhost:8000
   if (Platform.OS === "web") {
-    return envUrl || "http://localhost:8000";
+    return "http://localhost:8000";
   }
 
   // On physical mobile devices running Expo Go, extract the laptop host IP from hostUri

@@ -4,27 +4,88 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { colors } from "../src/theme/colors";
 
 import { onAuthStateChanged } from "../src/services/firebase";
 import { auth } from "../src/services/firebase";
 import { useAuthStore } from "../src/store/authStore";
 import { getMe } from "../src/api/auth";
+import { getGroups } from "../src/api/groups";
+import { getGroupExpenses } from "../src/api/expenses";
 import {
   registerForPushNotificationsAsync,
   setupNotificationListeners,
+  broadcastNotification,
 } from "../src/services/notifications";
+import { NotificationToast } from "../src/components/common/NotificationToast";
 
-// Initialize TanStack Query Client
+// Initialize TanStack Query Client with 5s real-time multi-user synchronization
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      staleTime: 1000 * 30, // 30 seconds
+      staleTime: 1000 * 3, // 3 seconds
+      refetchInterval: 5000, // Background poll every 5s for real-time updates across users
+      refetchOnWindowFocus: true, // Auto-update immediately when user switches tabs or focuses app
+      refetchOnReconnect: true,
     },
   },
 });
+
+function RealtimeSyncListener() {
+  const user = useAuthStore((state) => state.user);
+  const prevExpenseIdsRef = React.useRef<Set<string>>(new Set());
+  const initialLoadRef = React.useRef(false);
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: getGroups,
+    enabled: !!user,
+  });
+
+  const { data: allExpenses = [] } = useQuery({
+    queryKey: ["allExpenses", groups.map((g) => g.id)],
+    queryFn: async () => {
+      if (!groups || groups.length === 0) return [];
+      const promises = groups.map((g) => getGroupExpenses(g.id).catch(() => []));
+      const res = await Promise.all(promises);
+      return res.flat();
+    },
+    enabled: !!user && groups.length > 0,
+  });
+
+  useEffect(() => {
+    if (!user || allExpenses.length === 0) return;
+
+    if (!initialLoadRef.current) {
+      initialLoadRef.current = true;
+      prevExpenseIdsRef.current = new Set(allExpenses.map((e: any) => e.id));
+      return;
+    }
+
+    for (const exp of allExpenses as any[]) {
+      if (!prevExpenseIdsRef.current.has(exp.id)) {
+        prevExpenseIdsRef.current.add(exp.id);
+        // Only notify if created by someone else
+        if (exp.created_by !== user.id) {
+          const creatorName = exp.creator?.name || "A roommate";
+          broadcastNotification(
+            "New Expense Added",
+            `${creatorName} added '${exp.description}' — ₹${exp.amount}`,
+            {
+              type: "NEW_EXPENSE",
+              route: `/expenses/${exp.id}`,
+              data: { expenseId: exp.id },
+            }
+          );
+        }
+      }
+    }
+  }, [allExpenses, user]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const setUser = useAuthStore((state) => state.setUser);
@@ -142,6 +203,8 @@ export default function RootLayout() {
               />
               <Stack.Screen name="balances/[groupId]" options={{ headerShown: false }} />
             </Stack>
+            <RealtimeSyncListener />
+            <NotificationToast />
           </View>
         </View>
       </QueryClientProvider>

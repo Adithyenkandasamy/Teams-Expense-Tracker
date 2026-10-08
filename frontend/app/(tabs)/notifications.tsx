@@ -14,6 +14,7 @@ import { colors, spacing, typography } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { EmptyState } from "../../src/components/common/EmptyState";
 import { NotificationItem } from "../../src/types/models";
+import { useNotificationStore } from "../../src/store/notificationStore";
 
 // Initial notification history items matching backend event types
 const INITIAL_NOTIFICATIONS: NotificationItem[] = [
@@ -53,46 +54,41 @@ const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const notifications = useNotificationStore((state) => state.notifications);
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const markAllRead = useNotificationStore((state) => state.markAllAsRead);
 
   const getIconForType = (type: string) => {
     switch (type) {
       case "NEW_EXPENSE":
-        return { name: "receipt-outline" as const, color: colors.primary, bg: colors.primaryMuted };
+        return { name: "receipt-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
       case "PAYMENT_REMINDER":
         return { name: "time-outline" as const, color: colors.warning, bg: "rgba(245, 158, 11, 0.12)" };
       case "PAYMENT_SUBMITTED":
-        return { name: "arrow-up-circle-outline" as const, color: colors.info, bg: "rgba(59, 130, 246, 0.12)" };
+        return { name: "arrow-up-circle-outline" as const, color: colors.textSecondary, bg: colors.surfaceElevated };
       case "PAYMENT_ACCEPTED":
-        return { name: "checkmark-circle-outline" as const, color: colors.success, bg: colors.primaryMuted };
+        return { name: "checkmark-circle-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
       case "PAYMENT_REJECTED":
         return { name: "close-circle-outline" as const, color: colors.danger, bg: colors.dangerBg };
       case "DEADLINE_EXTENDED":
-        return { name: "calendar-outline" as const, color: colors.secondary, bg: colors.secondaryMuted };
+        return { name: "calendar-outline" as const, color: colors.textSecondary, bg: colors.surfaceElevated };
       case "EXPENSE_READY_TO_CLOSE":
-        return { name: "flag-outline" as const, color: colors.primary, bg: colors.primaryMuted };
+        return { name: "flag-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
       case "EXPENSE_CLOSED":
         return { name: "lock-closed-outline" as const, color: colors.textMuted, bg: colors.surfaceBorder };
       default:
-        return { name: "notifications-outline" as const, color: colors.primary, bg: colors.primaryMuted };
+        return { name: "notifications-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
     }
   };
 
   const handleNotificationPress = (item: NotificationItem) => {
-    // Mark as read
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
-    );
+    markAsRead(item.id);
 
     if (item.data?.expense_id) {
       router.push(`/expenses/${item.data.expense_id}` as any);
     } else if (item.data?.group_id) {
       router.push(`/groups/${item.data.group_id}` as any);
     }
-  };
-
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   return (
