@@ -11,7 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, typography } from "../../src/theme/colors";
-import { auth, GoogleAuthProvider, signInWithCredential } from "../../src/services/firebase";
+import { auth, GoogleAuthProvider, signInWithCredential, signInWithPopup } from "../../src/services/firebase";
 import { getMe } from "../../src/api/auth";
 import { useAuthStore } from "../../src/store/authStore";
 import { registerForPushNotificationsAsync } from "../../src/services/notifications";
@@ -30,64 +30,33 @@ export default function LoginScreen() {
       setLoading(true);
       setErrorMsg(null);
 
-      // In production Expo / React Native, Google sign-in flow gets the Google idToken
-      // and creates a Firebase credential with GoogleAuthProvider.credential(idToken).
-      // Here we sign in via Firebase Auth:
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const idToken = await currentUser.getIdToken(true);
-        setFirebaseUser(currentUser);
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      
+      const userCredential = await signInWithPopup(auth, provider);
+      const fbUser = userCredential.user;
+
+      if (fbUser) {
+        const idToken = await fbUser.getIdToken(true);
+        setFirebaseUser(fbUser);
         setToken(idToken);
 
         const backendUser = await getMe();
         setUser(backendUser);
         await registerForPushNotificationsAsync();
         router.replace("/(tabs)/home");
-        return;
       }
-
-      // If no session exists yet, prompt user or complete sign-in
-      Alert.alert(
-        "Google Sign-In",
-        "Sign in using your Google Account configured in Firebase.",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => setLoading(false),
-          },
-          {
-            text: "Continue",
-            onPress: async () => {
-              try {
-                // If a user is signed in with Firebase, fetch token and forward to FastAPI
-                const fbUser = auth.currentUser;
-                if (fbUser) {
-                  const token = await fbUser.getIdToken();
-                  setFirebaseUser(fbUser);
-                  setToken(token);
-                  const dbUser = await getMe();
-                  setUser(dbUser);
-                  await registerForPushNotificationsAsync();
-                  router.replace("/(tabs)/home");
-                } else {
-                  setErrorMsg("Please complete Google authentication in your Firebase browser session.");
-                }
-              } catch (err: any) {
-                setErrorMsg(err?.message || "Failed to authenticate with backend.");
-              } finally {
-                setLoading(false);
-              }
-            },
-          },
-        ]
-      );
     } catch (error: any) {
-      if (error?.code === "auth/popup-closed-by-user" || error?.code === "auth/cancelled") {
-        // User cancelled sign in
+      console.warn("Sign-in error:", error);
+      if (
+        error?.code === "auth/popup-closed-by-user" ||
+        error?.code === "auth/cancelled"
+      ) {
         setErrorMsg(null);
       } else {
-        setErrorMsg(error?.message || "Authentication error occurred. Please try again.");
+        setErrorMsg(
+          error?.message || "Authentication error occurred. Please try again."
+        );
       }
     } finally {
       setLoading(false);

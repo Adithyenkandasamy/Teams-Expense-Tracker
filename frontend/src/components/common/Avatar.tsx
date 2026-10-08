@@ -1,12 +1,12 @@
 import React from "react";
-import { View, Text, Image, StyleSheet, ViewStyle } from "react-native";
+import { View, Text, Image, StyleSheet, StyleProp, ViewStyle, ImageStyle } from "react-native";
 import { colors } from "../../theme/colors";
 
 interface AvatarProps {
   name: string;
   imageUrl?: string | null;
   size?: number;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle | ImageStyle>;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({
@@ -31,7 +31,7 @@ export const Avatar: React.FC<AvatarProps> = ({
         style={[
           styles.image,
           { width: size, height: size, borderRadius: size / 2 },
-          style,
+          style as ImageStyle,
         ]}
       />
     );
@@ -67,7 +67,7 @@ export const Avatar: React.FC<AvatarProps> = ({
           borderRadius: size / 2,
           backgroundColor: bg,
         },
-        style,
+        style as ViewStyle,
       ]}
     >
       <Text

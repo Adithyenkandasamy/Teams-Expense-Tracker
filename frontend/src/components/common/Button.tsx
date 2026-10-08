@@ -9,11 +9,13 @@ import {
 } from "react-native";
 import { colors, spacing } from "../../theme/colors";
 
+export type ButtonSize = "sm" | "md" | "lg" | "small" | "medium" | "large";
+
 interface ButtonProps {
   title: string;
   onPress: () => void;
   variant?: "primary" | "secondary" | "outline" | "danger" | "ghost";
-  size?: "sm" | "md" | "lg";
+  size?: ButtonSize;
   loading?: boolean;
   disabled?: boolean;
   style?: ViewStyle;
@@ -66,10 +68,13 @@ export const Button: React.FC<ButtonProps> = ({
   const getSizeStyles = () => {
     switch (size) {
       case "sm":
+      case "small":
         return { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: 13 };
       case "lg":
+      case "large":
         return { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl, fontSize: 16 };
       case "md":
+      case "medium":
       default:
         return { paddingVertical: spacing.md, paddingHorizontal: spacing.xl, fontSize: 15 };
     }

@@ -12,13 +12,15 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 /**
  * Requests push notification permissions and registers device token with FastAPI backend.
  */
-export async function registerForPushNotifications(): Promise<string | null> {
+export async function registerForPushNotificationsAsync(): Promise<string | null> {
   let token: string | null = null;
 
   try {
@@ -53,20 +55,28 @@ export async function registerForPushNotifications(): Promise<string | null> {
   return token;
 }
 
+export const registerForPushNotifications = registerForPushNotificationsAsync;
+
 /**
- * Listen for notification response (user tapped on a notification).
+ * Sets up foreground and background notification response listeners.
  */
-export function addNotificationResponseListener(
-  onNavigate: (route: string, params?: Record<string, any>) => void
-) {
-  return Notifications.addNotificationResponseReceivedListener((response) => {
+export function setupNotificationListeners(
+  onNavigate?: (route: string, params?: Record<string, any>) => void
+): () => void {
+  const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
-    if (data?.expenseId) {
-      onNavigate(`/expenses/${data.expenseId}`);
-    } else if (data?.groupId) {
-      onNavigate(`/groups/${data.groupId}`);
-    } else if (data?.type === "PAYMENT_SUBMITTED" && data?.expenseId) {
-      onNavigate(`/expenses/${data.expenseId}/review`);
+    if (onNavigate) {
+      if (data?.expenseId) {
+        onNavigate(`/expenses/${data.expenseId}`);
+      } else if (data?.groupId) {
+        onNavigate(`/groups/${data.groupId}`);
+      } else if (data?.type === "PAYMENT_SUBMITTED" && data?.expenseId) {
+        onNavigate(`/expenses/${data.expenseId}/review`);
+      }
     }
   });
+
+  return () => {
+    responseSubscription.remove();
+  };
 }

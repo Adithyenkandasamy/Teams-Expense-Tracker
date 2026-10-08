@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     height: screenHeight - 160,
   },
   loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1,

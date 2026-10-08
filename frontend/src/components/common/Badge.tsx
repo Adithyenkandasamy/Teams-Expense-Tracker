@@ -2,31 +2,36 @@ import React from "react";
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from "react-native";
 import { spacing } from "../../theme/colors";
 
+export type BadgeSize = "sm" | "md" | "small" | "medium";
+
 interface BadgeProps {
   label: string;
   color: string;
-  backgroundColor: string;
+  backgroundColor?: string;
+  bg?: string;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  size?: "sm" | "md";
+  size?: BadgeSize;
 }
 
 export const Badge: React.FC<BadgeProps> = ({
   label,
   color,
   backgroundColor,
+  bg,
   style,
   textStyle,
   size = "md",
 }) => {
-  const isSm = size === "sm";
+  const isSm = size === "sm" || size === "small";
+  const finalBg = bg || backgroundColor || "rgba(16, 185, 129, 0.14)";
 
   return (
     <View
       style={[
         styles.badge,
         {
-          backgroundColor,
+          backgroundColor: finalBg,
           paddingVertical: isSm ? 2 : spacing.xs,
           paddingHorizontal: isSm ? spacing.sm : spacing.md,
         },

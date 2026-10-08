@@ -9,6 +9,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithCredential,
+  signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -31,6 +32,7 @@ export const auth = getAuth(app);
 export {
   GoogleAuthProvider,
   signInWithCredential,
+  signInWithPopup,
   firebaseSignOut,
   onAuthStateChanged,
 };
