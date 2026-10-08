@@ -41,14 +41,18 @@ async def submit_payment(
         cloudinary_public_id=cloudinary_public_id,
     )
 
-    # Notify the expense leader
-    expense = await expense_service.get_expense_by_id(split.expense_id)
-    notification_service = NotificationService(db)
-    await notification_service.notify_payment_submitted(
-        leader_id=expense.created_by,
-        payer_name=current_user.name,
-        expense_description=expense.description,
-    )
+    # Notify the expense leader safely
+    try:
+        expense = await expense_service.get_expense_by_id(split.expense_id)
+        notification_service = NotificationService(db)
+        await notification_service.notify_payment_submitted(
+            leader_id=expense.created_by,
+            payer_name=current_user.name or "A roommate",
+            expense_description=expense.description,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Could not dispatch payment submitted notification: {e}")
 
     return ExpenseSplitResponse.model_validate(split)
 
@@ -64,22 +68,24 @@ async def approve_payment(
     expense_service = ExpenseService(db)
     split = await expense_service.approve_payment(split_id, current_user)
 
-    # Notify the split owner
-    expense = await expense_service.get_expense_by_id(split.expense_id)
-    notification_service = NotificationService(db)
-    await notification_service.notify_payment_accepted(
-        user_id=split.user_id,
-        expense_description=expense.description,
-    )
-
-    # If expense is now READY_TO_CLOSE, notify leader
-    from app.models.enums import ExpenseStatus
-
-    if expense.status == ExpenseStatus.READY_TO_CLOSE.value:
-        await notification_service.notify_expense_ready_to_close(
-            leader_id=expense.created_by,
+    # Notify the split owner safely
+    try:
+        expense = await expense_service.get_expense_by_id(split.expense_id)
+        notification_service = NotificationService(db)
+        await notification_service.notify_payment_accepted(
+            user_id=split.user_id,
             expense_description=expense.description,
         )
+
+        from app.models.enums import ExpenseStatus
+        if expense.status == ExpenseStatus.READY_TO_CLOSE.value:
+            await notification_service.notify_expense_ready_to_close(
+                leader_id=expense.created_by,
+                expense_description=expense.description,
+            )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Could not dispatch payment approval notification: {e}")
 
     return ExpenseSplitResponse.model_validate(split)
 
@@ -95,12 +101,16 @@ async def reject_payment(
     expense_service = ExpenseService(db)
     split = await expense_service.reject_payment(split_id, current_user)
 
-    # Notify the split owner
-    expense = await expense_service.get_expense_by_id(split.expense_id)
-    notification_service = NotificationService(db)
-    await notification_service.notify_payment_rejected(
-        user_id=split.user_id,
-        expense_description=expense.description,
-    )
+    # Notify the split owner safely
+    try:
+        expense = await expense_service.get_expense_by_id(split.expense_id)
+        notification_service = NotificationService(db)
+        await notification_service.notify_payment_rejected(
+            user_id=split.user_id,
+            expense_description=expense.description,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Could not dispatch payment rejection notification: {e}")
 
     return ExpenseSplitResponse.model_validate(split)

@@ -10,28 +10,12 @@ import { getStoredToken } from "../services/storage";
 
 // Default to emulator/localhost/LAN IP
 const getDefaultApiUrl = () => {
-  // If explicitly configured, strip any trailing slash
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-  if (envUrl) {
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
     return envUrl;
   }
-
-  // On Web, default to localhost:8000
-  if (Platform.OS === "web") {
-    return "http://localhost:8000";
-  }
-
-  // On physical mobile devices running Expo Go, extract the laptop host IP from hostUri
-  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(":")[0];
-    if (host) {
-      return `http://${host}:8000`;
-    }
-  }
-
-  // Android emulator fallback
-  return Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000";
+  // Default to live production Vercel deployment
+  return "https://teams-expense-tracker.vercel.app";
 };
 
 export const API_BASE_URL = getDefaultApiUrl();

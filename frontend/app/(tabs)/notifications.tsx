@@ -91,13 +91,15 @@ export default function NotificationsScreen() {
     }
   };
 
+  const notificationList = notifications || [];
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
         title="Notifications"
         subtitle="Reminders & activity updates"
         rightAction={
-          notifications.length > 0 ? (
+          notificationList.length > 0 ? (
             <TouchableOpacity onPress={markAllRead} activeOpacity={0.7}>
               <Text style={styles.markReadText}>Mark all read</Text>
             </TouchableOpacity>
@@ -105,7 +107,7 @@ export default function NotificationsScreen() {
         }
       />
 
-      {notifications.length === 0 ? (
+      {notificationList.length === 0 ? (
         <EmptyState
           icon="notifications-off-outline"
           title="No Notifications"
@@ -113,14 +115,16 @@ export default function NotificationsScreen() {
         />
       ) : (
         <FlatList
-          data={notifications}
-          keyExtractor={(item) => item.id}
+          data={notificationList}
+          keyExtractor={(item, index) => item?.id || index.toString()}
           contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => {
-            const iconConfig = getIconForType(item.type);
+            if (!item) return null;
+            const iconConfig = getIconForType(item.type || "");
+            const isRead = !!item.read;
             return (
               <TouchableOpacity
-                style={[styles.card, !item.read && styles.unreadCard]}
+                style={[styles.card, !isRead && styles.unreadCard]}
                 onPress={() => handleNotificationPress(item)}
                 activeOpacity={0.8}
               >
@@ -130,12 +134,12 @@ export default function NotificationsScreen() {
 
                 <View style={styles.content}>
                   <View style={styles.titleRow}>
-                    <Text style={[styles.title, !item.read && styles.unreadTitle]} numberOfLines={1}>
-                      {item.title}
+                    <Text style={[styles.title, !isRead && styles.unreadTitle]} numberOfLines={1}>
+                      {item.title || "Notification"}
                     </Text>
-                    {!item.read && <View style={styles.unreadDot} />}
+                    {!isRead && <View style={styles.unreadDot} />}
                   </View>
-                  <Text style={styles.body}>{item.body}</Text>
+                  <Text style={styles.body}>{item.body || ""}</Text>
                 </View>
               </TouchableOpacity>
             );

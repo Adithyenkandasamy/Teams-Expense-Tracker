@@ -126,7 +126,17 @@ export default function PaymentReviewScreen() {
   if (isLoading && !expense) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Payment Review" showBack onBack={() => router.back()} />
+        <Header
+          title="Payment Review"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(`/expenses/${expenseId}` as any);
+            }
+          }}
+        />
         <LoadingState message="Loading submissions..." fullScreen />
       </SafeAreaView>
     );
@@ -136,13 +146,29 @@ export default function PaymentReviewScreen() {
   if (expense && expense.created_by !== currentUserId) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Unauthorized" showBack onBack={() => router.back()} />
+        <Header
+          title="Unauthorized"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(`/expenses/${expenseId}` as any);
+            }
+          }}
+        />
         <EmptyState
           icon="shield-outline"
           title="Access Restricted"
           description="Only the Expense Leader who paid the original bill can review submitted payments."
           actionTitle="Back"
-          onAction={() => router.back()}
+          onAction={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(`/expenses/${expenseId}` as any);
+            }
+          }}
         />
       </SafeAreaView>
     );

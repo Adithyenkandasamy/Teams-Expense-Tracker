@@ -101,7 +101,17 @@ export default function GroupDetailScreen() {
   if (loadingGroup && !group) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Group Details" showBack onBack={() => router.back()} />
+        <Header
+          title="Group Details"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/groups" as any);
+            }
+          }}
+        />
         <LoadingState message="Loading group details..." fullScreen />
       </SafeAreaView>
     );
@@ -110,7 +120,17 @@ export default function GroupDetailScreen() {
   if (!group) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Group Not Found" showBack onBack={() => router.back()} />
+        <Header
+          title="Group Not Found"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/groups" as any);
+            }
+          }}
+        />
         <EmptyState
           icon="alert-circle-outline"
           title="Group Not Found"

@@ -21,18 +21,19 @@ export const NotificationToast: React.FC = () => {
   const opacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const isNative = Platform.OS !== "web";
     if (toast) {
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
           bounciness: 4,
           speed: 12,
         }),
         Animated.timing(opacity, {
           toValue: 1,
           duration: 200,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
       ]).start();
     } else {
@@ -40,12 +41,12 @@ export const NotificationToast: React.FC = () => {
         Animated.timing(translateY, {
           toValue: -80,
           duration: 200,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
         Animated.timing(opacity, {
           toValue: 0,
           duration: 180,
-          useNativeDriver: true,
+          useNativeDriver: isNative,
         }),
       ]).start();
     }

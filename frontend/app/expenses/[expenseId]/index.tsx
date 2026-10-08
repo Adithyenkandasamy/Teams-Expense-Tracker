@@ -76,7 +76,17 @@ export default function ExpenseDetailScreen() {
   if (isLoading && !expense) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Expense Details" showBack onBack={() => router.back()} />
+        <Header
+          title="Expense Details"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/expenses" as any);
+            }
+          }}
+        />
         <LoadingState message="Loading expense details..." fullScreen />
       </SafeAreaView>
     );
@@ -85,13 +95,29 @@ export default function ExpenseDetailScreen() {
   if (!expense) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Expense Not Found" showBack onBack={() => router.back()} />
+        <Header
+          title="Expense Not Found"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/expenses" as any);
+            }
+          }}
+        />
         <EmptyState
           icon="alert-circle-outline"
           title="Expense Not Found"
           description="Could not find this expense."
           actionTitle="Back"
-          onAction={() => router.back()}
+          onAction={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/(tabs)/expenses" as any);
+            }
+          }}
         />
       </SafeAreaView>
     );

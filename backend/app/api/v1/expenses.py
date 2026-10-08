@@ -32,13 +32,17 @@ async def create_expense(
     expense_service = ExpenseService(db)
     expense = await expense_service.create_expense(group_id, data, current_user)
 
-    # Send notifications to split users
-    notification_service = NotificationService(db)
-    await notification_service.notify_new_expense(
-        user_ids=data.split_between,
-        expense_description=data.description,
-        amount=str(data.amount),
-    )
+    # Send notifications to split users safely
+    try:
+        notification_service = NotificationService(db)
+        await notification_service.notify_new_expense(
+            user_ids=data.split_between,
+            expense_description=data.description,
+            amount=str(data.amount),
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Could not dispatch new expense notification: {e}")
 
     return ExpenseResponse.model_validate(expense)
 

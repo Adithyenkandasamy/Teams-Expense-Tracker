@@ -193,7 +193,17 @@ export default function PaymentScreen() {
   if (isLoading || !expense || !mySplit) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <Header title="Settle Share" showBack onBack={() => router.back()} />
+        <Header
+          title="Settle Share"
+          showBack
+          onBack={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace(`/expenses/${expenseId}` as any);
+            }
+          }}
+        />
         <LoadingState message="Loading payment details..." fullScreen />
       </SafeAreaView>
     );
