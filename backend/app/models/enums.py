@@ -7,6 +7,7 @@ class GroupRole(enum.StrEnum):
     """Roles within a group."""
 
     OWNER = "OWNER"
+    LEADER = "LEADER"
     MEMBER = "MEMBER"
 
 

@@ -1,5 +1,7 @@
 """Firebase Admin SDK initialization and token verification."""
 
+import os
+
 import firebase_admin
 from firebase_admin import auth, credentials, messaging
 
@@ -13,16 +15,33 @@ def get_firebase_app() -> firebase_admin.App:
     global _firebase_app
     if _firebase_app is None:
         settings = get_settings()
-        cred = credentials.Certificate(
-            {
-                "type": "service_account",
-                "project_id": settings.firebase_project_id,
-                "private_key": settings.firebase_private_key.replace("\\n", "\n"),
-                "client_email": settings.firebase_client_email,
-                "token_uri": "https://oauth2.googleapis.com/token",
-            }
-        )
-        _firebase_app = firebase_admin.initialize_app(cred)
+        path = settings.firebase_credentials_path
+        if path and os.path.exists(path):
+            cred = credentials.Certificate(path)
+        elif (
+            settings.firebase_project_id
+            and settings.firebase_private_key
+            and settings.firebase_client_email
+        ):
+            cred = credentials.Certificate(
+                {
+                    "type": "service_account",
+                    "project_id": settings.firebase_project_id,
+                    "private_key": settings.firebase_private_key.replace("\\n", "\n"),
+                    "client_email": settings.firebase_client_email,
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                }
+            )
+        else:
+            try:
+                cred = credentials.ApplicationDefault()
+            except Exception:
+                cred = None
+
+        if cred is not None:
+            _firebase_app = firebase_admin.initialize_app(cred)
+        else:
+            _firebase_app = firebase_admin.initialize_app()
     return _firebase_app
 
 

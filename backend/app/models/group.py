@@ -24,10 +24,14 @@ class Group(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
+    leader_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
 
     # Relationships
     members = relationship("GroupMember", back_populates="group", lazy="selectin")
     creator = relationship("User", foreign_keys=[created_by], lazy="selectin")
+    group_leader = relationship("User", foreign_keys=[leader_id], lazy="selectin")
     expenses = relationship("Expense", back_populates="group", lazy="select")
 
     def __repr__(self) -> str:

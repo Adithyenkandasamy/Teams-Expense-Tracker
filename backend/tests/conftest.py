@@ -234,7 +234,8 @@ async def test_expense(
         expense_id=expense.id,
         user_id=user_alice.id,
         amount=Decimal("50.00"),
-        status=PaymentStatus.PENDING.value,
+        status=PaymentStatus.PAID.value,
+        paid_at=now,
     )
     split_bob = ExpenseSplit(
         expense_id=expense.id,

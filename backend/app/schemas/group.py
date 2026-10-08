@@ -23,6 +23,7 @@ class GroupResponse(BaseModel):
     description: str | None = None
     invite_code: str
     created_by: uuid.UUID
+    leader_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
     member_count: int | None = None

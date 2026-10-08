@@ -1,15 +1,31 @@
-# Byte-compiled / optimized / DLL files
+# Python / Virtual environments
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual environments
 venv/
 .venv/
 env/
+backend/.venv/
 
-# Environment variables
+# Environment variables & secrets
 .env
+*.env
+backend/.env
+backend/*firebase-adminsdk*.json
+*firebase-adminsdk*.json
+google-services.json
+frontend/google-services.json
+
+# Node / React Native / Expo
+node_modules/
+frontend/node_modules/
+.expo/
+frontend/.expo/
+.expo-shared/
+frontend/.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -17,21 +33,14 @@ env/
 *.swp
 *.swo
 
-# Distribution
-dist/
-build/
-*.egg-info/
-
-# Testing
+# Testing / Cache
 .pytest_cache/
+backend/.pytest_cache/
+.ruff_cache/
+backend/.ruff_cache/
 htmlcov/
 .coverage
-
-# Alembic
-alembic/versions/__pycache__/
-
-# Docker
-.dockerignore
+backend/.coverage
 
 # OS
 .DS_Store

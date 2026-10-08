@@ -60,6 +60,12 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column(
+            "leader_id",
+            UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=True,
+        ),
+        sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
             server_default=sa.func.now(),

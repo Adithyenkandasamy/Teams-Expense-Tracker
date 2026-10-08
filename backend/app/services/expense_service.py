@@ -54,8 +54,11 @@ class ExpenseService:
         # Verify creator is a group member
         await self.group_service.verify_membership(group_id, creator.id)
 
-        # Verify paid_by is a group member
-        await self.group_service.verify_membership(group_id, data.paid_by)
+        # Enforce that creator must be the person who paid the bill
+        if creator.id != data.paid_by:
+            raise BadRequestError(
+                "Expense creator must be the person who paid the bill (created_by == paid_by)"
+            )
 
         # Verify all split users are group members
         for user_id in data.split_between:
@@ -79,16 +82,23 @@ class ExpenseService:
         # Calculate equal splits
         split_amounts = _split_amount_equally(data.amount, len(data.split_between))
 
+        now = datetime.now(UTC)
         for i, user_id in enumerate(data.split_between):
+            is_leader = user_id == creator.id
             split = ExpenseSplit(
                 expense_id=expense.id,
                 user_id=user_id,
                 amount=split_amounts[i],
-                status=PaymentStatus.PENDING.value,
+                status=PaymentStatus.PAID.value if is_leader else PaymentStatus.PENDING.value,
+                paid_at=now if is_leader else None,
             )
             self.db.add(split)
 
         await self.db.flush()
+
+        # If all splits are already paid (e.g. solo expense), mark READY_TO_CLOSE
+        await self._check_all_paid(expense)
+
         return await self.get_expense_by_id(expense.id)
 
     async def get_expense_by_id(self, expense_id: uuid.UUID) -> Expense:
@@ -273,7 +283,7 @@ class ExpenseService:
         expense.cloudinary_public_id = cloudinary_public_id
 
         await self.db.flush()
-        return expense
+        return await self.get_expense_by_id(expense.id)
 
     async def _check_all_paid(self, expense: Expense) -> None:
         """If all splits are PAID, set expense status to READY_TO_CLOSE."""
