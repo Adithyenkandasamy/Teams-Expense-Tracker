@@ -24,7 +24,7 @@ export const Badge: React.FC<BadgeProps> = ({
   size = "md",
 }) => {
   const isSm = size === "sm" || size === "small";
-  const finalBg = bg || backgroundColor || "rgba(16, 185, 129, 0.14)";
+  const finalBg = bg || backgroundColor || "rgba(255, 255, 255, 0.08)";
 
   return (
     <View
@@ -56,13 +56,15 @@ export const Badge: React.FC<BadgeProps> = ({
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
     alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
   },
   text: {
-    fontWeight: "600",
+    fontWeight: "500",
     textTransform: "capitalize",
   },
 });

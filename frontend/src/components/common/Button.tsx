@@ -102,7 +102,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === "outline" || variant === "ghost" ? colors.primary : "#FFFFFF"}
+          color={variant === "primary" ? colors.textInverse : colors.textPrimary}
         />
       ) : (
         <>
@@ -127,7 +127,7 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   baseContainer: {
-    borderRadius: 12,
+    borderRadius: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   primaryText: {
-    color: "#FFFFFF",
+    color: colors.textInverse,
   },
   secondaryContainer: {
     backgroundColor: colors.surfaceElevated,
@@ -151,11 +151,11 @@ const styles = StyleSheet.create({
   },
   outlineContainer: {
     backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
   outlineText: {
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   dangerContainer: {
     backgroundColor: colors.danger,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   disabledContainer: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   disabledText: {
     color: colors.textMuted,

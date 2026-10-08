@@ -58,18 +58,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    color: colors.textPrimary,
+    marginBottom: 6,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: spacing.md,
   },
   inputError: {
@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: colors.textPrimary,
-    fontSize: 15,
-    paddingVertical: spacing.md,
+    fontSize: 14,
+    paddingVertical: 10,
   },
   leftIcon: {
     marginRight: spacing.sm,

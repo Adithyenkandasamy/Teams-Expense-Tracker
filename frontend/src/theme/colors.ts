@@ -1,53 +1,55 @@
 /**
- * Modern fintech theme color palette.
+ * Clean, premium Shadcn-inspired monochrome dark theme palette.
+ * Pure deep zinc/black backgrounds, crisp 1px borders, and high-contrast white accents.
  */
 
 export const colors = {
-  // Brand
-  primary: "#10B981", // Emerald primary
-  primaryDark: "#059669",
-  primaryLight: "#34D399",
-  primaryMuted: "rgba(16, 185, 129, 0.12)",
+  // Brand / Primary (High-contrast monochrome: pure crisp white on dark)
+  primary: "#FAFAFA",
+  primaryDark: "#E4E4E7",
+  primaryLight: "#FFFFFF",
+  primaryMuted: "rgba(255, 255, 255, 0.08)",
 
-  secondary: "#6366F1", // Indigo accent
-  secondaryMuted: "rgba(99, 102, 241, 0.12)",
+  // Secondary
+  secondary: "#27272A",
+  secondaryMuted: "rgba(255, 255, 255, 0.04)",
 
-  // Backgrounds & Surfaces (sleek dark aesthetic)
-  background: "#090D16",
-  surface: "#111827",
-  surfaceElevated: "#1A2234",
-  surfaceBorder: "#243048",
-  borderLight: "#334155",
+  // Backgrounds & Surfaces (Shadcn Dark Neutral / Zinc)
+  background: "#09090B",       // Pure deep neutral black
+  surface: "#121215",          // Card surface
+  surfaceElevated: "#18181B",  // Elevated surfaces / modals / inputs
+  surfaceBorder: "#27272A",    // Sharp 1px zinc border
+  borderLight: "#3F3F46",      // Subtle hover / highlight border
 
   // Text
-  textPrimary: "#F8FAFC",
-  textSecondary: "#94A3B8",
-  textMuted: "#64748B",
-  textInverse: "#090D16",
+  textPrimary: "#FAFAFA",      // Clean bright white
+  textSecondary: "#A1A1AA",    // Neutral zinc-400
+  textMuted: "#71717A",        // Zinc-500
+  textInverse: "#09090B",      // Pure black for high-contrast white buttons
 
-  // Status colors
+  // Status colors (Clean, modern accents)
   status: {
-    paid: "#10B981",
-    paidBg: "rgba(16, 185, 129, 0.14)",
+    paid: "#FAFAFA",
+    paidBg: "rgba(255, 255, 255, 0.08)",
     pending: "#F59E0B",
-    pendingBg: "rgba(245, 158, 11, 0.14)",
-    submitted: "#3B82F6",
-    submittedBg: "rgba(59, 130, 246, 0.14)",
+    pendingBg: "rgba(245, 158, 11, 0.12)",
+    submitted: "#A1A1AA",
+    submittedBg: "rgba(161, 161, 170, 0.12)",
     rejected: "#EF4444",
-    rejectedBg: "rgba(239, 68, 68, 0.14)",
-    active: "#3B82F6",
-    readyToClose: "#8B5CF6",
-    readyToCloseBg: "rgba(139, 92, 246, 0.14)",
-    closed: "#64748B",
-    closedBg: "rgba(100, 116, 139, 0.14)",
+    rejectedBg: "rgba(239, 68, 68, 0.12)",
+    active: "#FAFAFA",
+    readyToClose: "#E4E4E7",
+    readyToCloseBg: "rgba(228, 228, 231, 0.12)",
+    closed: "#71717A",
+    closedBg: "rgba(113, 113, 122, 0.12)",
   },
 
   // Action states
   danger: "#EF4444",
   dangerBg: "rgba(239, 68, 68, 0.12)",
-  success: "#10B981",
+  success: "#FAFAFA",
   warning: "#F59E0B",
-  info: "#3B82F6",
+  info: "#A1A1AA",
 
   // Shadows
   shadow: "#000000",
@@ -64,11 +66,11 @@ export const spacing = {
 } as const;
 
 export const typography = {
-  h1: { fontSize: 28, fontWeight: "700" as const, color: colors.textPrimary },
-  h2: { fontSize: 22, fontWeight: "700" as const, color: colors.textPrimary },
-  h3: { fontSize: 18, fontWeight: "600" as const, color: colors.textPrimary },
-  body1: { fontSize: 16, fontWeight: "400" as const, color: colors.textPrimary },
+  h1: { fontSize: 26, fontWeight: "700" as const, color: colors.textPrimary, letterSpacing: -0.5 },
+  h2: { fontSize: 20, fontWeight: "600" as const, color: colors.textPrimary, letterSpacing: -0.3 },
+  h3: { fontSize: 16, fontWeight: "600" as const, color: colors.textPrimary, letterSpacing: -0.2 },
+  body1: { fontSize: 15, fontWeight: "400" as const, color: colors.textPrimary },
   body2: { fontSize: 14, fontWeight: "400" as const, color: colors.textSecondary },
   caption: { fontSize: 12, fontWeight: "500" as const, color: colors.textMuted },
-  amount: { fontSize: 24, fontWeight: "700" as const, color: colors.textPrimary },
+  amount: { fontSize: 24, fontWeight: "700" as const, color: colors.textPrimary, letterSpacing: -0.5 },
 } as const;
