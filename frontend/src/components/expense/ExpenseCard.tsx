@@ -63,7 +63,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, onPress }) =>
         <View style={styles.rightInfo}>
           {isLeader ? (
             <View style={styles.leaderBadge}>
-              <Ionicons name="star" size={12} color={colors.primary} />
+              <Ionicons name="star" size={12} color={colors.textPrimary} />
               <Text style={styles.leaderText}>You are Expense Leader</Text>
             </View>
           ) : mySplit ? (
@@ -114,7 +114,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, onPress }) =>
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 10,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   category: {
     ...typography.caption,
-    color: colors.primary,
+    color: colors.textSecondary,
     textTransform: "capitalize",
   },
   dateDot: {
@@ -178,15 +178,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: colors.primaryMuted,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   leaderText: {
     ...typography.caption,
-    color: colors.primary,
-    fontWeight: "600",
+    color: colors.textPrimary,
+    fontWeight: "500",
   },
   splitOwed: {
     alignItems: "flex-end",

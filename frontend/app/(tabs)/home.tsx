@@ -331,18 +331,18 @@ const styles = StyleSheet.create({
   balanceCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 10,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
   oweCard: {
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: colors.danger,
   },
   owedCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.textPrimary,
   },
   balanceCardHeader: {
     flexDirection: "row",
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   balanceLabel: {
     ...typography.caption,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   balanceValue: {
     ...typography.h3,
@@ -368,10 +368,10 @@ const styles = StyleSheet.create({
   actionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(245, 158, 11, 0.12)",
+    backgroundColor: "rgba(245, 158, 11, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.3)",
-    borderRadius: 14,
+    borderColor: "rgba(245, 158, 11, 0.25)",
+    borderRadius: 8,
     padding: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.md,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   actionBannerTitle: {
     ...typography.body2,
-    fontWeight: "700",
+    fontWeight: "600",
     color: colors.warning,
   },
   actionBannerSub: {
@@ -398,16 +398,19 @@ const styles = StyleSheet.create({
   actionButton: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 8,
     padding: spacing.md,
     alignItems: "center",
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
   actionIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 38,
+    height: 38,
+    borderRadius: 6,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
@@ -415,7 +418,7 @@ const styles = StyleSheet.create({
   actionButtonText: {
     ...typography.caption,
     color: colors.textPrimary,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -430,7 +433,7 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     ...typography.caption,
-    color: colors.primary,
-    fontWeight: "600",
+    color: colors.textSecondary,
+    fontWeight: "500",
   },
 });

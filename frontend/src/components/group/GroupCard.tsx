@@ -20,7 +20,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onPress }) => {
     >
       <View style={styles.contentRow}>
         <View style={styles.iconCircle}>
-          <Ionicons name="people" size={24} color={colors.primary} />
+          <Ionicons name="people" size={20} color={colors.textPrimary} />
         </View>
 
         <View style={styles.infoArea}>
@@ -52,7 +52,7 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onPress }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 10,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
@@ -63,10 +63,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryMuted,
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.md,
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     ...typography.caption,
-    color: colors.primary,
-    fontWeight: "600",
+    color: colors.textSecondary,
+    fontWeight: "500",
   },
 });

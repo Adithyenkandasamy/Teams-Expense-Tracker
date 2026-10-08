@@ -225,10 +225,10 @@ export default function CreateExpenseScreen() {
       >
         {/* Creator Notice (Business rule: creator == payer == Expense Leader) */}
         <View style={styles.leaderNotice}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+          <Ionicons name="information-circle-outline" size={18} color={colors.textPrimary} />
           <Text style={styles.leaderNoticeText}>
             You will be recorded as having paid the full bill and will be the{" "}
-            <Text style={{ fontWeight: "700", color: colors.primary }}>
+            <Text style={{ fontWeight: "600", color: colors.textPrimary }}>
               Expense Leader
             </Text>{" "}
             for this expense.
@@ -364,7 +364,7 @@ export default function CreateExpenseScreen() {
               onPress={pickReceiptImage}
               activeOpacity={0.7}
             >
-              <Ionicons name="camera-outline" size={24} color={colors.primary} />
+              <Ionicons name="camera-outline" size={20} color={colors.textPrimary} />
               <Text style={styles.uploadReceiptText}>Take photo or upload bill</Text>
             </TouchableOpacity>
           )}
@@ -423,7 +423,7 @@ export default function CreateExpenseScreen() {
             </View>
             <View style={styles.previewRow}>
               <Text style={styles.previewLabel}>Each Person Owes:</Text>
-              <Text style={[styles.previewValue, { color: colors.primary }]}>
+              <Text style={[styles.previewValue, { color: colors.textPrimary }]}>
                 {formatINR(previewSplitAmount)}
               </Text>
             </View>
@@ -460,14 +460,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.primaryMuted,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderRadius: 8,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
   leaderNoticeText: {
     ...typography.caption,
-    color: colors.textPrimary,
+    color: colors.textSecondary,
     flex: 1,
     lineHeight: 18,
   },
@@ -479,11 +481,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.sm,
     textTransform: "uppercase",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
   amountCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 8,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
@@ -492,8 +494,10 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.textMuted,
     marginBottom: spacing.xs,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   amountInputRow: {
     flexDirection: "row",
@@ -502,7 +506,7 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     ...typography.h1,
-    color: colors.primary,
+    color: colors.textSecondary,
     marginRight: 6,
   },
   amountInputField: {
@@ -514,7 +518,7 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.body2,
-    fontWeight: "600",
+    fontWeight: "500",
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
@@ -529,43 +533,45 @@ const styles = StyleSheet.create({
   groupChip: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingVertical: 7,
+    borderRadius: 6,
     marginRight: spacing.sm,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
   groupChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
   },
   groupChipText: {
-    ...typography.body2,
+    ...typography.caption,
     color: colors.textSecondary,
+    fontWeight: "500",
   },
   groupChipTextActive: {
-    color: colors.primary,
-    fontWeight: "700",
+    color: colors.textInverse,
+    fontWeight: "600",
   },
   categoryChip: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingVertical: 7,
+    borderRadius: 6,
     marginRight: spacing.sm,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
   categoryChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
   },
   categoryChipText: {
     ...typography.caption,
     color: colors.textSecondary,
+    fontWeight: "500",
   },
   categoryChipTextActive: {
-    color: colors.primary,
+    color: colors.textInverse,
     fontWeight: "600",
   },
   deadlineRow: {
@@ -575,23 +581,24 @@ const styles = StyleSheet.create({
   deadlineChip: {
     flex: 1,
     backgroundColor: colors.surface,
-    paddingVertical: 10,
+    paddingVertical: 9,
     alignItems: "center",
-    borderRadius: 10,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
   deadlineChipActive: {
-    backgroundColor: colors.primaryMuted,
-    borderColor: colors.primary,
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
   },
   deadlineChipText: {
     ...typography.caption,
     color: colors.textSecondary,
+    fontWeight: "500",
   },
   deadlineChipTextActive: {
-    color: colors.primary,
-    fontWeight: "700",
+    color: colors.textInverse,
+    fontWeight: "600",
   },
   uploadReceiptBtn: {
     flexDirection: "row",
@@ -599,7 +606,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: colors.surfaceBorder,
@@ -607,12 +614,12 @@ const styles = StyleSheet.create({
   },
   uploadReceiptText: {
     ...typography.body2,
-    color: colors.primary,
-    fontWeight: "600",
+    color: colors.textPrimary,
+    fontWeight: "500",
   },
   receiptPreviewCard: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 8,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
@@ -623,7 +630,7 @@ const styles = StyleSheet.create({
   receiptThumb: {
     width: 60,
     height: 60,
-    borderRadius: 8,
+    borderRadius: 6,
   },
   removeReceiptBtn: {
     flexDirection: "row",
@@ -634,7 +641,7 @@ const styles = StyleSheet.create({
   removeReceiptText: {
     ...typography.caption,
     color: colors.danger,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   membersList: {
     marginTop: spacing.sm,
@@ -646,12 +653,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: colors.surface,
     padding: spacing.md,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
   memberItemSelected: {
-    borderColor: "rgba(16, 185, 129, 0.4)",
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceElevated,
   },
   memberLeft: {
     flexDirection: "row",
@@ -664,17 +672,17 @@ const styles = StyleSheet.create({
   },
   memberName: {
     ...typography.body2,
-    fontWeight: "600",
+    fontWeight: "500",
     color: colors.textPrimary,
   },
   memberSplitAmount: {
     ...typography.caption,
-    color: colors.primary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   previewCard: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
@@ -684,7 +692,7 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     textTransform: "uppercase",
-    letterSpacing: 1,
+    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   previewRow: {
@@ -700,7 +708,7 @@ const styles = StyleSheet.create({
   previewValue: {
     ...typography.h3,
     color: colors.textPrimary,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   submitWrapper: {
     marginTop: spacing.md,
