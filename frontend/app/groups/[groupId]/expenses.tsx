@@ -4,10 +4,11 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   RefreshControl,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +39,14 @@ export default function GroupExpensesScreen() {
         title="Group Expenses"
         subtitle={`${expenses.length} total`}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(`/groups/${groupId}` as any);
+          }
+        }}
+
         rightAction={
           <TouchableOpacity
             style={styles.addBtn}

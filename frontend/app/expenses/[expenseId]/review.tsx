@@ -4,12 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
   TouchableOpacity,
   Image,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -104,7 +105,14 @@ export default function PaymentReviewScreen() {
         title="Review Payments"
         subtitle={expense?.description}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(`/expenses/${expenseId}` as any);
+          }
+        }}
+
       />
 
       <ScrollView

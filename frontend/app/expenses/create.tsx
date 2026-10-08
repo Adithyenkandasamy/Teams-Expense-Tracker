@@ -3,12 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -57,7 +58,7 @@ export default function CreateExpenseScreen() {
 
   // Auto-select all members initially when members load
   React.useEffect(() => {
-    if (members.length > 0 && selectedMemberIds.length === 0) {
+    if (members.length > 0) {
       setSelectedMemberIds(members.map((m) => m.user_id));
     }
   }, [members]);
@@ -67,7 +68,8 @@ export default function CreateExpenseScreen() {
     if (!selectedGroupId && groups.length > 0) {
       setSelectedGroupId(groups[0].id);
     }
-  }, [groups]);
+  }, [groups, selectedGroupId]);
+
 
   // Toggle member selection
   const toggleMember = (userId: string) => {
@@ -129,7 +131,6 @@ export default function CreateExpenseScreen() {
   // Create expense mutation
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!currentUser?.id) throw new Error("Not logged in");
       const deadlineDate = new Date();
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
 
@@ -137,7 +138,6 @@ export default function CreateExpenseScreen() {
         amount: parseFloat(amount).toFixed(2),
         description: description.trim(),
         category,
-        paid_by: currentUser.id,
         split_between: selectedMemberIds,
         deadline: deadlineDate.toISOString(),
       });
@@ -167,7 +167,7 @@ export default function CreateExpenseScreen() {
     onError: (err: any) => {
       Alert.alert(
         "Creation Error",
-        err?.response?.data?.message || err?.message || "Could not create expense."
+        err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Could not create expense."
       );
     },
   });
@@ -196,7 +196,17 @@ export default function CreateExpenseScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header title="Add Expense" showBack onBack={() => router.back()} />
+      <Header
+        title="Add Expense"
+        showBack
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/expenses" as any);
+          }
+        }}
+      />
 
       <ScrollView
         style={styles.container}
@@ -216,9 +226,9 @@ export default function CreateExpenseScreen() {
         </View>
 
         {/* Group Selector */}
-        {groups.length > 1 && (
+        {groups.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Select Group</Text>
+            <Text style={styles.sectionTitle}>Group</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
               {groups.map((g) => (
                 <TouchableOpacity
@@ -243,6 +253,7 @@ export default function CreateExpenseScreen() {
             </ScrollView>
           </View>
         )}
+
 
         {/* Amount Input */}
         <View style={styles.amountCard}>

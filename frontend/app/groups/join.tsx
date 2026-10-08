@@ -33,10 +33,19 @@ export default function JoinGroupScreen() {
       ]);
     },
     onError: (err: any) => {
-      Alert.alert(
-        "Join Failed",
-        err?.response?.data?.message || err?.message || "Invalid invite code or already a member."
-      );
+      const msg = err?.message || "Invalid invite code or already a member.";
+      if (msg.toLowerCase().includes("already a member")) {
+        Alert.alert(
+          "Already a Member",
+          "You are already a member of this group!",
+          [
+            { text: "View Groups", onPress: () => router.replace("/(tabs)/groups" as any) },
+            { text: "OK", style: "cancel" },
+          ]
+        );
+      } else {
+        Alert.alert("Join Failed", msg);
+      }
     },
   });
 
@@ -52,7 +61,18 @@ export default function JoinGroupScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header title="Join a Group" showBack onBack={() => router.back()} />
+      <Header
+        title="Join a Group"
+        showBack
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/groups" as any);
+          }
+        }}
+      />
+
 
       <ScrollView
         style={styles.container}

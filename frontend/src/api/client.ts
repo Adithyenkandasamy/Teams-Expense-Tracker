@@ -4,19 +4,38 @@
 
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { getIdToken } from "../services/firebase";
 import { getStoredToken } from "../services/storage";
 
-// Default to emulator/localhost if not provided
+// Default to emulator/localhost/LAN IP
 const getDefaultApiUrl = () => {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  // If explicitly configured to a remote/non-localhost domain, use it
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl;
   }
-  // Android emulator maps 10.0.2.2 to host machine localhost:8000
+
+  // On Web, localhost:8000 works directly
+  if (Platform.OS === "web") {
+    return envUrl || "http://localhost:8000";
+  }
+
+  // On physical mobile devices running Expo Go, extract the laptop host IP from hostUri
+  const hostUri = Constants.expoConfig?.hostUri || (Constants as any).manifest2?.extra?.expoClient?.hostUri;
+  if (hostUri) {
+    const host = hostUri.split(":")[0];
+    if (host) {
+      return `http://${host}:8000`;
+    }
+  }
+
+  // Android emulator fallback
   return Platform.OS === "android" ? "http://10.0.2.2:8000" : "http://localhost:8000";
 };
 
 export const API_BASE_URL = getDefaultApiUrl();
+
 
 export const apiClient = axios.create({
   baseURL: `${API_BASE_URL}/api/v1`,

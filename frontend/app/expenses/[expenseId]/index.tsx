@@ -4,11 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -116,7 +117,14 @@ export default function ExpenseDetailScreen() {
         title={expense.description}
         subtitle={expense.category || "Expense Details"}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/expenses" as any);
+          }
+        }}
+
       />
 
       <ScrollView

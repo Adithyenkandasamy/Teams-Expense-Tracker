@@ -1,9 +1,12 @@
 import React, { useEffect } from "react";
+import { View, StyleSheet, Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { colors } from "../src/theme/colors";
+
 import { onAuthStateChanged } from "../src/services/firebase";
 import { auth } from "../src/services/firebase";
 import { useAuthStore } from "../src/store/authStore";
@@ -80,62 +83,96 @@ export default function RootLayout() {
     };
   }, []);
 
+  const isWeb = Platform.OS === "web";
+
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: colors.background,
-            },
-            headerTintColor: colors.textPrimary,
-            headerTitleStyle: {
-              fontWeight: "600",
-            },
-            contentStyle: {
-              backgroundColor: colors.background,
-            },
-            headerShown: false,
-            animation: "slide_from_right",
-          }}
-        >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="groups/create"
-            options={{ presentation: "modal", headerShown: false }}
-          />
-          <Stack.Screen
-            name="groups/join"
-            options={{ presentation: "modal", headerShown: false }}
-          />
-          <Stack.Screen name="groups/[groupId]/index" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="groups/[groupId]/members"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="groups/[groupId]/expenses"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="expenses/create"
-            options={{ presentation: "modal", headerShown: false }}
-          />
-          <Stack.Screen name="expenses/[expenseId]/index" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="expenses/[expenseId]/payment"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="expenses/[expenseId]/review"
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen name="balances/[groupId]" options={{ headerShown: false }} />
-        </Stack>
+        <View style={isWeb ? styles.webWrapper : styles.nativeWrapper}>
+          <View style={isWeb ? styles.webContainer : styles.nativeWrapper}>
+            <Stack
+              screenOptions={{
+                headerStyle: {
+                  backgroundColor: colors.background,
+                },
+                headerTintColor: colors.textPrimary,
+                headerTitleStyle: {
+                  fontWeight: "600",
+                },
+                contentStyle: {
+                  backgroundColor: colors.background,
+                },
+                headerShown: false,
+                animation: "slide_from_right",
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="groups/create"
+                options={{ presentation: "modal", headerShown: false }}
+              />
+              <Stack.Screen
+                name="groups/join"
+                options={{ presentation: "modal", headerShown: false }}
+              />
+              <Stack.Screen name="groups/[groupId]/index" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="groups/[groupId]/members"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="groups/[groupId]/expenses"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="expenses/create"
+                options={{ presentation: "modal", headerShown: false }}
+              />
+              <Stack.Screen name="expenses/[expenseId]/index" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="expenses/[expenseId]/payment"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="expenses/[expenseId]/review"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="balances/[groupId]" options={{ headerShown: false }} />
+            </Stack>
+          </View>
+        </View>
       </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  nativeWrapper: {
+    flex: 1,
+  },
+  webWrapper: {
+    flex: 1,
+    backgroundColor: "#06090F",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    height: "100%",
+  },
+  webContainer: {
+    flex: 1,
+    width: "100%",
+    maxWidth: 440,
+    maxHeight: 900,
+    backgroundColor: colors.background,
+    overflow: "hidden",
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 28,
+  },
+});
+

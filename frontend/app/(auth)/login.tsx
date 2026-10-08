@@ -1,20 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
+  Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
 import { colors, spacing, typography } from "../../src/theme/colors";
-import { auth, GoogleAuthProvider, signInWithCredential, signInWithPopup } from "../../src/services/firebase";
+import {
+  auth,
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithCustomToken,
+  signInWithPopup,
+} from "../../src/services/firebase";
 import { getMe } from "../../src/api/auth";
+import { apiClient } from "../../src/api/client";
 import { useAuthStore } from "../../src/store/authStore";
 import { registerForPushNotificationsAsync } from "../../src/services/notifications";
+
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,26 +37,96 @@ export default function LoginScreen() {
   const setFirebaseUser = useAuthStore((state) => state.setFirebaseUser);
   const setToken = useAuthStore((state) => state.setToken);
 
+  // Setup expo-auth-session Google provider for mobile
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
+    androidClientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
+    webClientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
+  });
+
+  // Handle mobile Google redirect response
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token, access_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token || null, access_token || null);
+
+      setLoading(true);
+      signInWithCredential(auth, credential)
+        .then(async (userCredential) => {
+          const fbUser = userCredential.user;
+          const idToken = await fbUser.getIdToken(true);
+          setFirebaseUser(fbUser);
+          setToken(idToken);
+
+          try {
+            const backendUser = await getMe();
+            setUser(backendUser);
+          } catch {
+            // Fallback user from Firebase token
+            setUser({
+              id: fbUser.uid,
+              firebase_uid: fbUser.uid,
+              name: fbUser.displayName || "User",
+              email: fbUser.email || "",
+              profile_image: fbUser.photoURL,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          }
+
+          await registerForPushNotificationsAsync();
+          router.replace("/(tabs)/home");
+        })
+        .catch((err) => {
+          console.warn("Mobile auth error:", err);
+          setErrorMsg(err?.message || "Failed to sign in with Google credential.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else if (response?.type === "error") {
+      setErrorMsg(response.error?.message || "Google sign-in was cancelled or failed.");
+    }
+  }, [response]);
+
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
       setErrorMsg(null);
 
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      
-      const userCredential = await signInWithPopup(auth, provider);
-      const fbUser = userCredential.user;
+      if (Platform.OS === "web") {
+        // Web browser: use direct Firebase popup
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
 
-      if (fbUser) {
-        const idToken = await fbUser.getIdToken(true);
-        setFirebaseUser(fbUser);
-        setToken(idToken);
+        const userCredential = await signInWithPopup(auth, provider);
+        const fbUser = userCredential.user;
 
-        const backendUser = await getMe();
-        setUser(backendUser);
-        await registerForPushNotificationsAsync();
-        router.replace("/(tabs)/home");
+        if (fbUser) {
+          const idToken = await fbUser.getIdToken(true);
+          setFirebaseUser(fbUser);
+          setToken(idToken);
+
+          try {
+            const backendUser = await getMe();
+            setUser(backendUser);
+          } catch {
+            setUser({
+              id: fbUser.uid,
+              firebase_uid: fbUser.uid,
+              name: fbUser.displayName || "User",
+              email: fbUser.email || "",
+              profile_image: fbUser.photoURL,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          }
+
+          router.replace("/(tabs)/home");
+        }
+      } else {
+        // Native mobile (Android / iOS): use Expo Google prompt
+        await promptAsync();
       }
     } catch (error: any) {
       console.warn("Sign-in error:", error);
@@ -58,6 +140,47 @@ export default function LoginScreen() {
           error?.message || "Authentication error occurred. Please try again."
         );
       }
+    } finally {
+      if (Platform.OS === "web") {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDevSignIn = async () => {
+    try {
+      setLoading(true);
+      setErrorMsg(null);
+      const res = await apiClient.post("/auth/dev-token");
+      const customToken = res.data.custom_token;
+
+      const userCredential = await signInWithCustomToken(auth, customToken);
+      const fbUser = userCredential.user;
+      const idToken = await fbUser.getIdToken(true);
+
+      setFirebaseUser(fbUser);
+      setToken(idToken);
+
+      try {
+        const backendUser = await getMe();
+        setUser(backendUser);
+      } catch {
+        setUser({
+          id: fbUser.uid,
+          firebase_uid: fbUser.uid,
+          name: fbUser.displayName || "Adithyen",
+          email: fbUser.email || "aadithyen1@gmail.com",
+          profile_image: fbUser.photoURL,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      await registerForPushNotificationsAsync();
+      router.replace("/(tabs)/home");
+    } catch (err: any) {
+      console.warn("Dev login error:", err);
+      setErrorMsg(err?.message || "Failed to sign in with test account.");
     } finally {
       setLoading(false);
     }
@@ -107,7 +230,7 @@ export default function LoginScreen() {
         <TouchableOpacity
           style={[styles.googleButton, loading && styles.buttonDisabled]}
           onPress={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || (!request && Platform.OS !== "web")}
           activeOpacity={0.8}
         >
           {loading ? (
@@ -120,6 +243,16 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.devButton, loading && styles.buttonDisabled]}
+          onPress={handleDevSignIn}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="flash-outline" size={18} color={colors.primary} />
+          <Text style={styles.devButtonText}>Instant Test Sign-In (Adithyen)</Text>
+        </TouchableOpacity>
+
         <Text style={styles.disclaimer}>
           By continuing, you agree to our Terms of Service & Privacy Policy.
         </Text>
@@ -127,6 +260,7 @@ export default function LoginScreen() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -218,9 +352,27 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.textInverse,
   },
+  devButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    width: "100%",
+    height: 48,
+    borderRadius: 14,
+  },
+  devButtonText: {
+    ...typography.body2,
+    fontWeight: "600",
+    color: colors.primary,
+  },
   disclaimer: {
     ...typography.caption,
     color: colors.textMuted,
     textAlign: "center",
   },
 });
+

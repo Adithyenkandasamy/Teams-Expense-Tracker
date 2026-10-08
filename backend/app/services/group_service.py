@@ -43,6 +43,7 @@ class GroupService:
         )
         self.db.add(member)
         await self.db.flush()
+        await self.db.refresh(group)
         return group
 
     async def get_group_by_id(self, group_id: uuid.UUID) -> Group:
@@ -88,6 +89,7 @@ class GroupService:
         )
         self.db.add(member)
         await self.db.flush()
+        await self.db.refresh(member)
         return member
 
     async def get_group_members(self, group_id: uuid.UUID) -> list[GroupMember]:

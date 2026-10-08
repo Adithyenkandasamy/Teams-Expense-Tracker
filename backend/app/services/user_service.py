@@ -31,4 +31,5 @@ class UserService:
         for field, value in update_data.items():
             setattr(user, field, value)
         await self.db.flush()
+        await self.db.refresh(user)
         return user

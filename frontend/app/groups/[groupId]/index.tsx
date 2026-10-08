@@ -4,12 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
   TouchableOpacity,
   Share,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -127,7 +128,14 @@ export default function GroupDetailScreen() {
         title={group.name}
         subtitle={`${members.length} ${members.length === 1 ? "member" : "members"}`}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/groups" as any);
+          }
+        }}
+
         rightAction={
           <TouchableOpacity
             style={styles.shareBtn}

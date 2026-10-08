@@ -4,9 +4,10 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { getGroupMembers } from "../../../src/api/groups";
@@ -38,7 +39,14 @@ export default function GroupMembersScreen() {
         title="Group Members"
         subtitle={`${members.length} total`}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(`/groups/${groupId}` as any);
+          }
+        }}
+
       />
 
       <View style={styles.roleExplanation}>

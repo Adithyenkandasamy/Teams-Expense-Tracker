@@ -16,6 +16,17 @@ def get_firebase_app() -> firebase_admin.App:
     if _firebase_app is None:
         settings = get_settings()
         path = settings.firebase_credentials_path
+        if path:
+            if not os.path.isabs(path):
+                candidates = [
+                    os.path.abspath(path),
+                    os.path.join("/app", path),
+                    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), path),
+                ]
+                for candidate in candidates:
+                    if os.path.exists(candidate):
+                        path = candidate
+                        break
         if path and os.path.exists(path):
             cred = credentials.Certificate(path)
         elif (

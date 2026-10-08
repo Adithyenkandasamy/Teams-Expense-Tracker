@@ -15,9 +15,10 @@ class ExpenseCreate(BaseModel):
     amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
     description: str = Field(min_length=1, max_length=500)
     category: str | None = Field(None, max_length=100)
-    paid_by: uuid.UUID
+    paid_by: uuid.UUID | None = None
     split_between: list[uuid.UUID] = Field(min_length=1)
     deadline: datetime
+
 
     @field_validator("amount")
     @classmethod

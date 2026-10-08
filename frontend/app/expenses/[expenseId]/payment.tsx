@@ -3,12 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -140,7 +141,18 @@ export default function PaymentScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header title="Settle Share" showBack onBack={() => router.back()} />
+      <Header
+        title="Settle Share"
+        showBack
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(`/expenses/${expenseId}` as any);
+          }
+        }}
+      />
+
 
       <ScrollView
         style={styles.container}

@@ -55,7 +55,8 @@ class ExpenseService:
         await self.group_service.verify_membership(group_id, creator.id)
 
         # Enforce that creator must be the person who paid the bill
-        if creator.id != data.paid_by:
+        payer_id = data.paid_by or creator.id
+        if creator.id != payer_id:
             raise BadRequestError(
                 "Expense creator must be the person who paid the bill (created_by == paid_by)"
             )
@@ -67,7 +68,8 @@ class ExpenseService:
         expense = Expense(
             group_id=group_id,
             created_by=creator.id,
-            paid_by=data.paid_by,
+            paid_by=payer_id,
+
             amount=data.amount,
             description=data.description,
             category=data.category,

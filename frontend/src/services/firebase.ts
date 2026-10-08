@@ -7,13 +7,19 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   getAuth,
+  initializeAuth,
+  // @ts-ignore
+  getReactNativePersistence,
   GoogleAuthProvider,
   signInWithCredential,
+  signInWithCustomToken,
   signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User as FirebaseUser,
 } from "firebase/auth";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyFakeKeyForBuild",
@@ -27,15 +33,31 @@ const firebaseConfig = {
 // Initialize Firebase client app once
 export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(app);
+// Initialize auth with persistence on native platforms
+let authInstance;
+try {
+  if (Platform.OS !== "web" && typeof getReactNativePersistence === "function") {
+    authInstance = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } else {
+    authInstance = getAuth(app);
+  }
+} catch {
+  authInstance = getAuth(app);
+}
+
+export const auth = authInstance;
 
 export {
   GoogleAuthProvider,
   signInWithCredential,
+  signInWithCustomToken,
   signInWithPopup,
   firebaseSignOut,
   onAuthStateChanged,
 };
+
 export type { FirebaseUser };
 
 /**

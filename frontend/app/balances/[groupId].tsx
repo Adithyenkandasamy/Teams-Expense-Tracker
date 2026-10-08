@@ -4,9 +4,10 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +39,14 @@ export default function GroupBalancesScreen() {
         title="Group Balances"
         subtitle={balances?.group_name || "Settlement summary"}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace(`/groups/${groupId}` as any);
+          }
+        }}
+
       />
 
       {isLoading && !balances ? (

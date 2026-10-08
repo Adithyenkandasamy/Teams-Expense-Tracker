@@ -3,11 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Alert,
   TouchableOpacity,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -56,8 +57,15 @@ export default function CreateGroupScreen() {
       <Header
         title={createdGroup ? "Group Created!" : "Create Group"}
         showBack
-        onBack={() => router.back()}
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/groups" as any);
+          }
+        }}
       />
+
 
       <ScrollView
         style={styles.container}

@@ -35,6 +35,7 @@ class NotificationService:
             existing.user_id = user_id
             existing.device_type = data.device_type
             await self.db.flush()
+            await self.db.refresh(existing)
             return existing
 
         device_token = DeviceToken(
@@ -44,6 +45,7 @@ class NotificationService:
         )
         self.db.add(device_token)
         await self.db.flush()
+        await self.db.refresh(device_token)
         return device_token
 
     async def _get_user_tokens(self, user_id: uuid.UUID) -> list[str]:
