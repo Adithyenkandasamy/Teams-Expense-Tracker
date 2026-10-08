@@ -12,24 +12,24 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { getExpenseDetail, closeExpense } from "../../src/api/expenses";
-import { useAuthStore } from "../../src/store/authStore";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { getExpenseDetail, closeExpense } from "../../../src/api/expenses";
+import { useAuthStore } from "../../../src/store/authStore";
+import { colors, spacing, typography } from "../../../src/theme/colors";
 import {
   formatINR,
   formatDate,
   formatDateTime,
   formatDeadlineStatus,
   getExpenseStatusBadge,
-} from "../../src/utils/formatters";
-import { Header } from "../../src/components/common/Header";
-import { Badge } from "../../src/components/common/Badge";
-import { Button } from "../../src/components/common/Button";
-import { ExpenseSplitRow } from "../../src/components/expense/ExpenseSplitRow";
-import { ReceiptModal } from "../../src/components/expense/ReceiptModal";
-import { ConfirmModal } from "../../src/components/common/ConfirmModal";
-import { LoadingState } from "../../src/components/common/LoadingState";
-import { EmptyState } from "../../src/components/common/EmptyState";
+} from "../../../src/utils/formatters";
+import { Header } from "../../../src/components/common/Header";
+import { Badge } from "../../../src/components/common/Badge";
+import { Button } from "../../../src/components/common/Button";
+import { ExpenseSplitRow } from "../../../src/components/expense/ExpenseSplitRow";
+import { ReceiptModal } from "../../../src/components/expense/ReceiptModal";
+import { ConfirmModal } from "../../../src/components/common/ConfirmModal";
+import { LoadingState } from "../../../src/components/common/LoadingState";
+import { EmptyState } from "../../../src/components/common/EmptyState";
 
 export default function ExpenseDetailScreen() {
   const { expenseId } = useLocalSearchParams<{ expenseId: string }>();

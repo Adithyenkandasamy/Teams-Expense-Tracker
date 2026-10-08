@@ -1,26 +1,43 @@
 /**
  * Push notifications service with Expo Notifications & FCM token registration.
+ * Gracefully degrades in Expo Go (since SDK 53 removed remote push from Expo Go client).
  */
 
-import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { registerDeviceToken } from "../api/notifications";
 
-// Configure foreground notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+let Notifications: any = null;
+if (!isExpoGo || Platform.OS === "web") {
+  try {
+    Notifications = require("expo-notifications");
+    if (Notifications?.setNotificationHandler) {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+    }
+  } catch (err) {
+    console.warn("Could not load expo-notifications:", err);
+  }
+}
 
 /**
  * Requests push notification permissions and registers device token with FastAPI backend.
  */
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (isExpoGo || !Notifications) {
+    // In Expo Go, push notifications are not supported in SDK 53+.
+    return null;
+  }
+
   let token: string | null = null;
 
   try {
@@ -33,11 +50,9 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     if (finalStatus !== "granted") {
-      console.log("Permission not granted for push notifications");
       return null;
     }
 
-    // Get FCM / Expo device push token
     const pushTokenData = await Notifications.getDevicePushTokenAsync();
     token = pushTokenData.data;
 
@@ -63,20 +78,28 @@ export const registerForPushNotifications = registerForPushNotificationsAsync;
 export function setupNotificationListeners(
   onNavigate?: (route: string, params?: Record<string, any>) => void
 ): () => void {
-  const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-    const data = response.notification.request.content.data;
-    if (onNavigate) {
-      if (data?.expenseId) {
-        onNavigate(`/expenses/${data.expenseId}`);
-      } else if (data?.groupId) {
-        onNavigate(`/groups/${data.groupId}`);
-      } else if (data?.type === "PAYMENT_SUBMITTED" && data?.expenseId) {
-        onNavigate(`/expenses/${data.expenseId}/review`);
-      }
-    }
-  });
+  if (isExpoGo || !Notifications?.addNotificationResponseReceivedListener) {
+    return () => {};
+  }
 
-  return () => {
-    responseSubscription.remove();
-  };
+  try {
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
+      const data = response?.notification?.request?.content?.data;
+      if (onNavigate) {
+        if (data?.expenseId) {
+          onNavigate(`/expenses/${data.expenseId}`);
+        } else if (data?.groupId) {
+          onNavigate(`/groups/${data.groupId}`);
+        } else if (data?.type === "PAYMENT_SUBMITTED" && data?.expenseId) {
+          onNavigate(`/expenses/${data.expenseId}/review`);
+        }
+      }
+    });
+
+    return () => {
+      responseSubscription.remove();
+    };
+  } catch {
+    return () => {};
+  }
 }

@@ -111,7 +111,7 @@ export default function RootLayout() {
             name="groups/join"
             options={{ presentation: "modal", headerShown: false }}
           />
-          <Stack.Screen name="groups/[groupId]" options={{ headerShown: false }} />
+          <Stack.Screen name="groups/[groupId]/index" options={{ headerShown: false }} />
           <Stack.Screen
             name="groups/[groupId]/members"
             options={{ headerShown: false }}
@@ -124,7 +124,7 @@ export default function RootLayout() {
             name="expenses/create"
             options={{ presentation: "modal", headerShown: false }}
           />
-          <Stack.Screen name="expenses/[expenseId]" options={{ headerShown: false }} />
+          <Stack.Screen name="expenses/[expenseId]/index" options={{ headerShown: false }} />
           <Stack.Screen
             name="expenses/[expenseId]/payment"
             options={{ headerShown: false }}

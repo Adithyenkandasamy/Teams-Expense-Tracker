@@ -13,18 +13,18 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { getGroupDetail, getGroupMembers } from "../../src/api/groups";
-import { getGroupExpenses } from "../../src/api/expenses";
-import { getGroupBalances } from "../../src/api/balances";
-import { useAuthStore } from "../../src/store/authStore";
-import { colors, spacing, typography } from "../../src/theme/colors";
-import { formatINR } from "../../src/utils/formatters";
-import { Header } from "../../src/components/common/Header";
-import { ExpenseCard } from "../../src/components/expense/ExpenseCard";
-import { MemberRow } from "../../src/components/group/MemberRow";
-import { LoadingState } from "../../src/components/common/LoadingState";
-import { EmptyState } from "../../src/components/common/EmptyState";
-import { Button } from "../../src/components/common/Button";
+import { getGroupDetail, getGroupMembers } from "../../../src/api/groups";
+import { getGroupExpenses } from "../../../src/api/expenses";
+import { getGroupBalances } from "../../../src/api/balances";
+import { useAuthStore } from "../../../src/store/authStore";
+import { colors, spacing, typography } from "../../../src/theme/colors";
+import { formatINR } from "../../../src/utils/formatters";
+import { Header } from "../../../src/components/common/Header";
+import { ExpenseCard } from "../../../src/components/expense/ExpenseCard";
+import { MemberRow } from "../../../src/components/group/MemberRow";
+import { LoadingState } from "../../../src/components/common/LoadingState";
+import { EmptyState } from "../../../src/components/common/EmptyState";
+import { Button } from "../../../src/components/common/Button";
 
 export default function GroupDetailScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
