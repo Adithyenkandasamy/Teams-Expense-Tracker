@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import * as Google from "expo-auth-session/providers/google";
 import { colors, spacing, typography } from "../../src/theme/colors";
 import {
@@ -21,7 +22,7 @@ import {
   signInWithPopup,
 } from "../../src/services/firebase";
 import { getMe } from "../../src/api/auth";
-import { apiClient } from "../../src/api/client";
+import { apiClient, API_BASE_URL } from "../../src/api/client";
 import { useAuthStore } from "../../src/store/authStore";
 import { registerForPushNotificationsAsync } from "../../src/services/notifications";
 
@@ -37,14 +38,13 @@ export default function LoginScreen() {
   const setFirebaseUser = useAuthStore((state) => state.setFirebaseUser);
   const setToken = useAuthStore((state) => state.setToken);
 
-  // Setup expo-auth-session Google provider for mobile
+  // Fallback direct provider hook
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
-    androidClientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
     webClientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
   });
 
-  // Handle mobile Google redirect response
+  // Handle mobile Google redirect response if promptAsync fallback was used
   useEffect(() => {
     if (response?.type === "success") {
       const { id_token, access_token } = response.params;
@@ -62,7 +62,6 @@ export default function LoginScreen() {
             const backendUser = await getMe();
             setUser(backendUser);
           } catch {
-            // Fallback user from Firebase token
             setUser({
               id: fbUser.uid,
               firebase_uid: fbUser.uid,
@@ -122,11 +121,56 @@ export default function LoginScreen() {
             });
           }
 
+          await registerForPushNotificationsAsync();
           router.replace("/(tabs)/home");
         }
       } else {
-        // Native mobile (Android / iOS): use Expo Google prompt
-        await promptAsync();
+        // Mobile (Android / iOS): Open auth bridge via system WebBrowser
+        const redirectUrl = Linking.createURL("auth-callback");
+        const bridgeUrl = `${API_BASE_URL}/api/v1/auth/google-bridge?redirect_uri=${encodeURIComponent(redirectUrl)}`;
+
+        const result = await WebBrowser.openAuthSessionAsync(bridgeUrl, redirectUrl);
+
+        if (result.type === "success" && result.url) {
+          const parsed = Linking.parse(result.url);
+          const idToken = (parsed.queryParams?.token as string) || null;
+
+          if (idToken) {
+            const credential = GoogleAuthProvider.credential(idToken);
+            const userCredential = await signInWithCredential(auth, credential);
+            const fbUser = userCredential.user;
+            const freshToken = await fbUser.getIdToken(true);
+            setFirebaseUser(fbUser);
+            setToken(freshToken);
+
+            try {
+              const backendUser = await getMe();
+              setUser(backendUser);
+            } catch {
+              setUser({
+                id: fbUser.uid,
+                firebase_uid: fbUser.uid,
+                name: fbUser.displayName || "User",
+                email: fbUser.email || "",
+                profile_image: fbUser.photoURL,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+            }
+
+            await registerForPushNotificationsAsync();
+            router.replace("/(tabs)/home");
+            return;
+          }
+        } else if (result.type === "dismiss" || result.type === "cancel") {
+          // User dismissed the browser window
+          return;
+        } else {
+          // Fallback to Expo Google promptAsync if bridge wasn't completed
+          if (request) {
+            await promptAsync();
+          }
+        }
       }
     } catch (error: any) {
       console.warn("Sign-in error:", error);
@@ -141,9 +185,7 @@ export default function LoginScreen() {
         );
       }
     } finally {
-      if (Platform.OS === "web") {
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
 
@@ -230,7 +272,7 @@ export default function LoginScreen() {
         <TouchableOpacity
           style={[styles.googleButton, loading && styles.buttonDisabled]}
           onPress={handleGoogleSignIn}
-          disabled={loading || (!request && Platform.OS !== "web")}
+          disabled={loading}
           activeOpacity={0.8}
         >
           {loading ? (
