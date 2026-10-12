@@ -136,6 +136,10 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
       Continue with Google
     </button>
 
+    <a id="returnBtn" href="#" class="btn" style="display:none; background:#10B981; color:#FFFFFF; text-decoration:none; margin-top:12px;">
+      &#x2714; Open Team Expense App
+    </a>
+
     <div id="status" class="status"></div>
   </div>
 
@@ -147,7 +151,19 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
     }};
     firebase.initializeApp(firebaseConfig);
 
-    const redirectUri = "{redirect_uri}";
+    // Persist and restore target redirect URI across OAuth redirects
+    let targetRedirect = "{redirect_uri}";
+    try {{
+      const params = new URLSearchParams(window.location.search);
+      const queryRedirect = params.get('redirect_uri');
+      if (queryRedirect && queryRedirect !== "teamexpensetracker://") {{
+        targetRedirect = queryRedirect;
+        localStorage.setItem('saved_app_redirect', queryRedirect);
+      }} else {{
+        const cached = localStorage.getItem('saved_app_redirect');
+        if (cached) targetRedirect = cached;
+      }}
+    }} catch(e) {{}}
 
     function showStatus(msg, isError = false) {{
       const el = document.getElementById('status');
@@ -156,9 +172,21 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
     }}
 
     function finishAuth(idToken) {{
-      showStatus("Redirecting back to app...");
-      const sep = redirectUri.includes('?') ? '&' : '?';
-      window.location.href = redirectUri + sep + "token=" + encodeURIComponent(idToken);
+      showStatus("Login successful! Returning to mobile app...");
+      const sep = targetRedirect.includes('?') ? '&' : '?';
+      const finalUrl = targetRedirect + sep + "token=" + encodeURIComponent(idToken);
+
+      const googleBtn = document.getElementById('googleBtn');
+      if (googleBtn) googleBtn.style.display = 'none';
+
+      const returnBtn = document.getElementById('returnBtn');
+      if (returnBtn) {{
+        returnBtn.href = finalUrl;
+        returnBtn.style.display = 'flex';
+      }}
+
+      // Attempt automatic redirect into the mobile app
+      window.location.href = finalUrl;
     }}
 
     firebase.auth().onAuthStateChanged(async (user) => {{
@@ -184,6 +212,20 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
       showStatus("Connecting to Google...");
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({{ prompt: 'select_account' }});
+
+      // Try popup first so the current page & URL parameters are preserved
+      try {{
+        const res = await firebase.auth().signInWithPopup(provider);
+        if (res && res.user) {{
+          const token = await res.user.getIdToken();
+          finishAuth(token);
+          return;
+        }}
+      }} catch (popupErr) {{
+        console.log("Popup prevented, falling back to redirect flow:", popupErr);
+      }}
+
+      // Fall back to redirect if popup is blocked in mobile browser
       try {{
         await firebase.auth().signInWithRedirect(provider);
       }} catch (err) {{

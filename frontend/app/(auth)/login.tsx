@@ -44,6 +44,63 @@ export default function LoginScreen() {
     webClientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
   });
 
+  const processIdToken = async (idToken: string) => {
+    try {
+      setLoading(true);
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const fbUser = userCredential.user;
+      const freshToken = await fbUser.getIdToken(true);
+      setFirebaseUser(fbUser);
+      setToken(freshToken);
+
+      try {
+        const backendUser = await getMe();
+        setUser(backendUser);
+      } catch {
+        setUser({
+          id: fbUser.uid,
+          firebase_uid: fbUser.uid,
+          name: fbUser.displayName || "User",
+          email: fbUser.email || "",
+          profile_image: fbUser.photoURL,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      await registerForPushNotificationsAsync();
+      router.replace("/(tabs)/home");
+    } catch (err: any) {
+      console.warn("Token auth error:", err);
+      setErrorMsg(err?.message || "Failed to authenticate with Google credential.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Listen for deep link redirects from system browser
+  useEffect(() => {
+    const handleUrlEvent = (event: { url: string }) => {
+      if (event.url) {
+        const parsed = Linking.parse(event.url);
+        const token = (parsed.queryParams?.token as string) || null;
+        if (token) {
+          processIdToken(token);
+        }
+      }
+    };
+
+    const sub = Linking.addEventListener("url", handleUrlEvent);
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrlEvent({ url });
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, []);
+
   // Handle mobile Google redirect response if promptAsync fallback was used
   useEffect(() => {
     if (response?.type === "success") {
@@ -136,30 +193,7 @@ export default function LoginScreen() {
           const idToken = (parsed.queryParams?.token as string) || null;
 
           if (idToken) {
-            const credential = GoogleAuthProvider.credential(idToken);
-            const userCredential = await signInWithCredential(auth, credential);
-            const fbUser = userCredential.user;
-            const freshToken = await fbUser.getIdToken(true);
-            setFirebaseUser(fbUser);
-            setToken(freshToken);
-
-            try {
-              const backendUser = await getMe();
-              setUser(backendUser);
-            } catch {
-              setUser({
-                id: fbUser.uid,
-                firebase_uid: fbUser.uid,
-                name: fbUser.displayName || "User",
-                email: fbUser.email || "",
-                profile_image: fbUser.photoURL,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              });
-            }
-
-            await registerForPushNotificationsAsync();
-            router.replace("/(tabs)/home");
+            await processIdToken(idToken);
             return;
           }
         } else if (result.type === "dismiss" || result.type === "cancel") {
