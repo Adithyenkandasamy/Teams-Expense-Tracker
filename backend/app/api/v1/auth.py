@@ -33,6 +33,35 @@ async def create_dev_token() -> dict:
     return {"custom_token": custom_token}
 
 
+from pydantic import BaseModel
+
+class CustomTokenRequest(BaseModel):
+    uid: str
+    email: str | None = None
+    name: str | None = None
+    photo_url: str | None = None
+
+
+@router.post("/custom-token")
+async def generate_user_custom_token(payload: CustomTokenRequest) -> dict:
+    """Generate a Firebase custom token for any authenticated user."""
+    from app.core.firebase import get_firebase_app
+    from firebase_admin import auth as fb_auth
+
+    get_firebase_app()
+    claims = {}
+    if payload.email:
+        claims["email"] = payload.email
+    if payload.name:
+        claims["name"] = payload.name
+    if payload.photo_url:
+        claims["picture"] = payload.photo_url
+
+    token_bytes = fb_auth.create_custom_token(payload.uid, claims if claims else None)
+    custom_token = token_bytes.decode("utf-8") if isinstance(token_bytes, bytes) else token_bytes
+    return {"custom_token": custom_token}
+
+
 @router.get("/google-bridge", response_class=HTMLResponse)
 async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str:
     """Lightweight Google Auth web bridge for Expo Go mobile clients."""
@@ -102,17 +131,6 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
       min-height: 20px;
     }}
     .error {{ color: #EF4444; }}
-    .spinner {{
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255,255,255,.3);
-      border-radius: 50%;
-      border-top-color: #10B981;
-      animation: spin 1s ease-in-out infinite;
-      margin-top: 10px;
-    }}
-    @keyframes spin {{ to {{ transform: rotate(360deg); }} }}
   </style>
 </head>
 <body>
@@ -171,37 +189,53 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
       el.innerText = msg;
     }}
 
-    function finishAuth(idToken) {{
-      showStatus("Login successful! Returning to mobile app...");
-      const sep = targetRedirect.includes('?') ? '&' : '?';
-      const finalUrl = targetRedirect + sep + "token=" + encodeURIComponent(idToken);
+    let isFinishing = false;
+    async function finishAuth(user) {{
+      if (isFinishing || !user) return;
+      isFinishing = true;
+      showStatus("Connecting to mobile app...");
 
-      const googleBtn = document.getElementById('googleBtn');
-      if (googleBtn) googleBtn.style.display = 'none';
+      try {{
+        const res = await fetch("/api/v1/auth/custom-token", {{
+          method: "POST",
+          headers: {{ "Content-Type": "application/json" }},
+          body: JSON.stringify({{
+            uid: user.uid,
+            email: user.email || "",
+            name: user.displayName || "",
+            photo_url: user.photoURL || ""
+          }})
+        }});
+        const data = await res.json();
+        const customToken = data.custom_token;
 
-      const returnBtn = document.getElementById('returnBtn');
-      if (returnBtn) {{
-        returnBtn.href = finalUrl;
-        returnBtn.style.display = 'flex';
+        showStatus("Sign-in complete! Opening app...");
+        const sep = targetRedirect.includes('?') ? '&' : '?';
+        const finalUrl = targetRedirect + sep + "custom_token=" + encodeURIComponent(customToken);
+
+        const googleBtn = document.getElementById('googleBtn');
+        if (googleBtn) googleBtn.style.display = 'none';
+
+        const returnBtn = document.getElementById('returnBtn');
+        if (returnBtn) {{
+          returnBtn.href = finalUrl;
+          returnBtn.style.display = 'flex';
+        }}
+
+        // Attempt automatic redirect into the mobile app
+        window.location.href = finalUrl;
+      }} catch (err) {{
+        isFinishing = false;
+        showStatus("Session error: " + err.message, true);
       }}
-
-      // Attempt automatic redirect into the mobile app
-      window.location.href = finalUrl;
     }}
 
-    firebase.auth().onAuthStateChanged(async (user) => {{
-      if (user) {{
-        const token = await user.getIdToken();
-        finishAuth(token);
-      }}
+    firebase.auth().onAuthStateChanged((user) => {{
+      if (user) finishAuth(user);
     }});
 
-    // Check for redirect result on load
-    firebase.auth().getRedirectResult().then(async (result) => {{
-      if (result && result.user) {{
-        const token = await result.user.getIdToken();
-        finishAuth(token);
-      }}
+    firebase.auth().getRedirectResult().then((result) => {{
+      if (result && result.user) finishAuth(result.user);
     }}).catch((err) => {{
       showStatus(err.message, true);
     }});
@@ -213,19 +247,16 @@ async def google_auth_bridge(redirect_uri: str = "teamexpensetracker://") -> str
       const provider = new firebase.auth.GoogleAuthProvider();
       provider.setCustomParameters({{ prompt: 'select_account' }});
 
-      // Try popup first so the current page & URL parameters are preserved
       try {{
         const res = await firebase.auth().signInWithPopup(provider);
         if (res && res.user) {{
-          const token = await res.user.getIdToken();
-          finishAuth(token);
+          finishAuth(res.user);
           return;
         }}
       }} catch (popupErr) {{
         console.log("Popup prevented, falling back to redirect flow:", popupErr);
       }}
 
-      // Fall back to redirect if popup is blocked in mobile browser
       try {{
         await firebase.auth().signInWithRedirect(provider);
       }} catch (err) {{

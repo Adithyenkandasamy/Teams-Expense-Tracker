@@ -44,11 +44,22 @@ export default function LoginScreen() {
     webClientId: "888308901041-nlu0g4t5shm11cie6ttsgug3bvrvujdo.apps.googleusercontent.com",
   });
 
-  const processIdToken = async (idToken: string) => {
+  const processAuthToken = async (token: string, isCustomToken: boolean = false) => {
     try {
       setLoading(true);
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
+      setErrorMsg(null);
+      let userCredential;
+      if (isCustomToken) {
+        userCredential = await signInWithCustomToken(auth, token);
+      } else {
+        try {
+          userCredential = await signInWithCustomToken(auth, token);
+        } catch {
+          const credential = GoogleAuthProvider.credential(token);
+          userCredential = await signInWithCredential(auth, credential);
+        }
+      }
+
       const fbUser = userCredential.user;
       const freshToken = await fbUser.getIdToken(true);
       setFirebaseUser(fbUser);
@@ -73,7 +84,7 @@ export default function LoginScreen() {
       router.replace("/(tabs)/home");
     } catch (err: any) {
       console.warn("Token auth error:", err);
-      setErrorMsg(err?.message || "Failed to authenticate with Google credential.");
+      setErrorMsg(err?.message || "Failed to authenticate with token.");
     } finally {
       setLoading(false);
     }
@@ -84,9 +95,12 @@ export default function LoginScreen() {
     const handleUrlEvent = (event: { url: string }) => {
       if (event.url) {
         const parsed = Linking.parse(event.url);
-        const token = (parsed.queryParams?.token as string) || null;
-        if (token) {
-          processIdToken(token);
+        const customToken = parsed.queryParams?.custom_token as string;
+        const rawToken = parsed.queryParams?.token as string;
+        if (customToken) {
+          processAuthToken(customToken, true);
+        } else if (rawToken) {
+          processAuthToken(rawToken, false);
         }
       }
     };
@@ -190,10 +204,13 @@ export default function LoginScreen() {
 
         if (result.type === "success" && result.url) {
           const parsed = Linking.parse(result.url);
-          const idToken = (parsed.queryParams?.token as string) || null;
-
-          if (idToken) {
-            await processIdToken(idToken);
+          const customToken = parsed.queryParams?.custom_token as string;
+          const rawToken = parsed.queryParams?.token as string;
+          if (customToken) {
+            await processAuthToken(customToken, true);
+            return;
+          } else if (rawToken) {
+            await processAuthToken(rawToken, false);
             return;
           }
         } else if (result.type === "dismiss" || result.type === "cancel") {
