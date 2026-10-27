@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { getExpenseDetail, closeExpense } from "../../../src/api/expenses";
+import { getExpenseDetail, closeExpense, deleteExpense } from "../../../src/api/expenses";
 import { useAuthStore } from "../../../src/store/authStore";
 import { colors, spacing, typography } from "../../../src/theme/colors";
 import {
@@ -42,6 +42,7 @@ export default function ExpenseDetailScreen() {
 
   const [receiptVisible, setReceiptVisible] = useState(false);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
 
   const {
@@ -72,6 +73,21 @@ export default function ExpenseDetailScreen() {
         err?.response?.data?.message || err?.message || "All member splits must be PAID before closing."
       );
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteExpense(expenseId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["allExpenses"] }),
+        queryClient.invalidateQueries({ queryKey: ["groupExpenses"] }),
+        queryClient.invalidateQueries({ queryKey: ["groupBalances"] }),
+        queryClient.invalidateQueries({ queryKey: ["monthlySpending"] }),
+      ]);
+      setDeleteModalVisible(false);
+      router.replace(`/groups/${expense?.group_id}` as any);
+    },
+    onError: (error: Error) => Alert.alert("Could not delete expense", error.message),
   });
 
   if (isLoading && !expense) {
@@ -141,12 +157,18 @@ export default function ExpenseDetailScreen() {
     isExpenseLeader &&
     expense.status !== "CLOSED" &&
     expense.splits?.every((s) => s.status === "PAID");
+  const canDeleteExpense = isExpenseLeader && expense.status !== "CLOSED";
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
         title={expense.description}
         subtitle={expense.category || "Expense Details"}
+        rightAction={canDeleteExpense ? (
+          <TouchableOpacity style={styles.deleteExpenseAction} onPress={() => setDeleteModalVisible(true)} accessibilityLabel="Delete expense">
+            <Ionicons name="trash-outline" size={19} color={colors.danger} />
+          </TouchableOpacity>
+        ) : undefined}
         showBack
         onBack={() => {
           if (router.canGoBack()) {
@@ -349,6 +371,16 @@ export default function ExpenseDetailScreen() {
         onConfirm={() => closeMutation.mutate()}
         onCancel={() => setCloseModalVisible(false)}
       />
+      <ConfirmModal
+        visible={deleteModalVisible}
+        title="Delete this expense?"
+        message="This permanently removes the expense, its splits, payment proofs, and deadline history. Deletion is allowed only before another member has paid or submitted payment."
+        confirmText="Delete Expense"
+        confirmVariant="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onCancel={() => setDeleteModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -358,6 +390,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  deleteExpenseAction: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.surfaceBorder },
   container: {
     flex: 1,
   },

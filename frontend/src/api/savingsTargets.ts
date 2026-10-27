@@ -1,11 +1,13 @@
 import { apiClient } from "./client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SavingsTarget } from "../types/models";
+import { SavingsTarget, SavingsTargetSummary } from "../types/models";
 
 export interface SavingsTargetPayload {
   name: string;
   target_amount: number;
   saved_amount: number;
+  funding_mode?: "MANUAL" | "WALLET";
+  target_date?: string | null;
 }
 
 export async function getSavingsTargets(): Promise<SavingsTarget[]> {
@@ -45,6 +47,23 @@ export async function getSavingsTargets(): Promise<SavingsTarget[]> {
 
 export async function createSavingsTarget(payload: SavingsTargetPayload): Promise<SavingsTarget> {
   const response = await apiClient.post<SavingsTarget>("/savings-targets", payload);
+  return response.data;
+}
+
+export async function getSavingsTargetSummary(): Promise<SavingsTargetSummary> {
+  const response = await apiClient.get<SavingsTargetSummary>("/savings-targets/summary");
+  return response.data;
+}
+
+export async function addManualContribution(
+  id: string,
+  amount: number,
+  note?: string,
+): Promise<SavingsTarget> {
+  const response = await apiClient.post<SavingsTarget>(`/savings-targets/${id}/contributions`, {
+    amount,
+    note,
+  });
   return response.data;
 }
 

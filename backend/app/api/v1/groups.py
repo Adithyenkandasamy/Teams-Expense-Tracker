@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -126,3 +126,26 @@ async def list_group_members(
     await service.verify_membership(group_id, current_user.id)
     members = await service.get_group_members(group_id)
     return [GroupMemberResponse.model_validate(m) for m in members]
+
+
+@router.delete("/{group_id}/members/{member_user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_group_member(
+    group_id: uuid.UUID,
+    member_user_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Remove a settled member from a group; owners and leaders may remove others."""
+    service = GroupService(db)
+    await service.remove_member(group_id, member_user_id, current_user)
+
+
+@router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_group(
+    group_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a group and all of its shared expense records."""
+    service = GroupService(db)
+    await service.delete_group(group_id, current_user)

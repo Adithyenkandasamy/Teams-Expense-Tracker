@@ -30,3 +30,11 @@ export async function getGroupMembers(groupId: string): Promise<GroupMember[]> {
   const response = await apiClient.get<GroupMember[]>(`/groups/${groupId}/members`);
   return response.data;
 }
+
+export async function removeGroupMember(groupId: string, memberUserId: string): Promise<void> {
+  await apiClient.delete(`/groups/${groupId}/members/${memberUserId}`);
+}
+
+export async function deleteGroup(groupId: string): Promise<void> {
+  await apiClient.delete(`/groups/${groupId}`);
+}

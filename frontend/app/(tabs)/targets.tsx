@@ -1,112 +1,523 @@
 import React, { useState } from "react";
-import { Alert, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  RefreshControl,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "../../src/components/common/Header";
-import { EmptyState } from "../../src/components/common/EmptyState";
-import { colors, spacing, typography } from "../../src/theme/colors";
-import { formatINR } from "../../src/utils/formatters";
-import { createSavingsTarget, deleteSavingsTarget, getSavingsTargets, updateSavingsTarget } from "../../src/api/savingsTargets";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
+import {
+  createSavingsTarget,
+  getSavingsTargetSummary,
+  deleteSavingsTarget,
+  getSavingsTargets,
+  updateSavingsTarget,
+} from "../../src/api/savingsTargets";
+import { useAuthStore } from "../../src/store/authStore";
 import { FadeInView } from "../../src/components/animated";
-import { LoadingState } from "../../src/components/common/LoadingState";
+import {
+  SavingsTargetCard,
+  RecessedInput,
+  PrimaryButton,
+  SecondaryButton,
+  EmptyState,
+  LoadingSkeleton,
+  ErrorState,
+  ConfirmationDialog,
+  RaisedIconContainer,
+} from "../../src/components/skeuomorphic";
 
 export default function TargetsScreen() {
   const queryClient = useQueryClient();
-  const { data: goals = [], isLoading, isError, refetch } = useQuery({ queryKey: ["savingsTargets"], queryFn: getSavingsTargets });
-  const [visible, setVisible] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const user = useAuthStore((state) => state.user);
+
+  const {
+    data: goals = [],
+    isLoading,
+    isRefetching,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["savingsTargets"],
+    queryFn: getSavingsTargets,
+    enabled: !!user,
+    retry: 1,
+  });
+  const { data: summary } = useQuery({
+    queryKey: ["savingsTargets", "summary"],
+    queryFn: getSavingsTargetSummary,
+    enabled: !!user,
+    retry: 1,
+  });
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
+  const [isUpdatingSavedOnly, setIsUpdatingSavedOnly] = useState(false);
+  const [deleteConfirmTargetId, setDeleteConfirmTargetId] = useState<string | null>(null);
+
+  // Form state
   const [name, setName] = useState("");
-  const [target, setTarget] = useState("");
-  const [saved, setSaved] = useState("0");
+  const [targetAmount, setTargetAmount] = useState("");
+  const [savedAmount, setSavedAmount] = useState("0");
 
   const createMutation = useMutation({
     mutationFn: createSavingsTarget,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["savingsTargets"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["savingsTargets"] });
+      queryClient.invalidateQueries({ queryKey: ["savingsTargets", "summary"] });
+      closeModal();
+    },
+    onError: (err: any) => {
+      Alert.alert("Error", err?.message || "Could not create target.");
+    },
   });
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, saved_amount }: { id: string; saved_amount: number }) => updateSavingsTarget(id, { saved_amount }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["savingsTargets"] }),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { name?: string; target_amount?: number; saved_amount: number };
+    }) => updateSavingsTarget(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["savingsTargets"] });
+      queryClient.invalidateQueries({ queryKey: ["savingsTargets", "summary"] });
+      closeModal();
+    },
+    onError: (err: any) => {
+      Alert.alert("Error", err?.message || "Could not update target.");
+    },
   });
+
   const deleteMutation = useMutation({
     mutationFn: deleteSavingsTarget,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["savingsTargets"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["savingsTargets"] });
+      queryClient.invalidateQueries({ queryKey: ["savingsTargets", "summary"] });
+      setDeleteConfirmTargetId(null);
+    },
+    onError: (err: any) => {
+      Alert.alert("Error", err?.message || "Could not delete target.");
+    },
   });
 
-  const save = () => {
-    const goalTarget = Number(target);
-    const currentSaved = Number(saved) || 0;
-    if (!name.trim() || !Number.isFinite(goalTarget) || goalTarget <= 0 || !Number.isFinite(currentSaved) || currentSaved < 0) return;
-    void createMutation.mutateAsync({ name: name.trim(), target_amount: goalTarget, saved_amount: currentSaved })
-      .then(() => { setName(""); setTarget(""); setSaved("0"); setVisible(false); })
-      .catch((error: Error) => Alert.alert("Could not save target", error.message));
+  const closeModal = () => {
+    setModalVisible(false);
+    setEditingTargetId(null);
+    setIsUpdatingSavedOnly(false);
+    setName("");
+    setTargetAmount("");
+    setSavedAmount("0");
   };
 
-  const editSavedAmount = (goal: (typeof goals)[number]) => {
-    setEditingId(goal.id);
+  const handleOpenCreate = () => {
+    setEditingTargetId(null);
+    setIsUpdatingSavedOnly(false);
+    setName("");
+    setTargetAmount("");
+    setSavedAmount("0");
+    setModalVisible(true);
+  };
+
+  const handleOpenEdit = (goal: (typeof goals)[number]) => {
+    setEditingTargetId(goal.id);
+    setIsUpdatingSavedOnly(false);
     setName(goal.name);
-    setTarget(String(goal.target_amount));
-    setSaved(String(goal.saved_amount));
-    setVisible(true);
+    setTargetAmount(String(goal.target_amount));
+    setSavedAmount(String(goal.saved_amount));
+    setModalVisible(true);
   };
 
-  const saveChanges = () => {
-    const goalTarget = Number(target);
-    const currentSaved = Number(saved);
-    if (!editingId || !Number.isFinite(currentSaved) || currentSaved < 0 || !Number.isFinite(goalTarget) || goalTarget <= 0) return;
-    void updateMutation.mutateAsync({ id: editingId, saved_amount: currentSaved })
-      .then(() => { setEditingId(null); setVisible(false); })
-      .catch((error: Error) => Alert.alert("Could not update target", error.message));
+  const handleOpenUpdateSaved = (goal: (typeof goals)[number]) => {
+    setEditingTargetId(goal.id);
+    setIsUpdatingSavedOnly(true);
+    setName(goal.name);
+    setTargetAmount(String(goal.target_amount));
+    setSavedAmount(String(goal.saved_amount));
+    setModalVisible(true);
   };
 
-  const openCreate = () => { setEditingId(null); setName(""); setTarget(""); setSaved("0"); setVisible(true); };
+  const handleSave = () => {
+    const targetNum = Number(targetAmount);
+    const savedNum = Number(savedAmount) || 0;
+
+    if (isUpdatingSavedOnly && editingTargetId) {
+      if (!Number.isFinite(savedNum) || savedNum < 0) {
+        Alert.alert("Validation", "Please enter a valid saved amount.");
+        return;
+      }
+      updateMutation.mutate({
+        id: editingTargetId,
+        payload: { saved_amount: savedNum },
+      });
+      return;
+    }
+
+    if (!name.trim()) {
+      Alert.alert("Validation", "Please enter what you are saving for.");
+      return;
+    }
+    if (!Number.isFinite(targetNum) || targetNum <= 0) {
+      Alert.alert("Validation", "Please enter a target amount greater than zero.");
+      return;
+    }
+
+    if (editingTargetId) {
+      updateMutation.mutate({
+        id: editingTargetId,
+        payload: {
+          name: name.trim(),
+          target_amount: targetNum,
+          saved_amount: savedNum,
+        },
+      });
+    } else {
+      createMutation.mutate({
+        name: name.trim(),
+        target_amount: targetNum,
+        saved_amount: savedNum,
+      });
+    }
+  };
+
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header title="Savings targets" subtitle="Plan for the things ahead" rightAction={<TouchableOpacity onPress={openCreate} style={styles.headerAdd}><Ionicons name="add" size={20} color={colors.textInverse} /><Text style={styles.headerAddText}>New</Text></TouchableOpacity>} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <Header
+        title="Savings Targets"
+        subtitle="Plan and fund future milestones"
+        rightAction={
+          <TouchableOpacity
+            onPress={handleOpenCreate}
+            style={styles.newTargetBtn}
+            activeOpacity={0.8}
+          >
+            <RaisedIconContainer size={32} variant="raised">
+              <Ionicons name="add" size={20} color={colors.primary} />
+            </RaisedIconContainer>
+          </TouchableOpacity>
+        }
+      />
+
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={refetch}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+      >
+        {summary ? (
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryEyebrow}>YOUR SAVINGS</Text>
+            <Text style={styles.summaryAmount}>
+              ₹{Number(summary.total_saved).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </Text>
+            <Text style={styles.summaryLabel}>
+              Across {summary.active_targets} active target{summary.active_targets === 1 ? "" : "s"}
+            </Text>
+            <View style={styles.summaryFooter}>
+              <Text style={styles.summaryLabel}>
+                {summary.completed_targets} completed
+              </Text>
+              <Text style={styles.summaryRemaining}>
+                ₹{Number(summary.total_remaining).toLocaleString("en-IN", { minimumFractionDigits: 2 })} remaining
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {/* Intro Banner */}
         <FadeInView delay={0}>
           <View style={styles.introCard}>
-            <Text style={styles.eyebrow}>YOUR GOALS</Text>
-            <Text style={styles.intro}>Track what you’ve saved toward a planned purchase or milestone.</Text>
+            <View style={styles.introTopBevel} pointerEvents="none" />
+            <View style={styles.introHeader}>
+              <Ionicons name="flag" size={15} color={colors.primary} />
+              <Text style={styles.introEyebrow}>FINANCIAL GOALS</Text>
+            </View>
+            <Text style={styles.introTitle}>
+              Track what you’ve saved toward purchases, emergency funds, or trips.
+            </Text>
           </View>
         </FadeInView>
-        {isLoading ? <LoadingState message="Loading your targets..." /> : isError ? <EmptyState icon="cloud-offline-outline" title="Targets unavailable" description="Check your connection and try again." actionTitle="Try again" onAction={() => { void refetch(); }} /> : goals.length === 0 ? <EmptyState icon="flag-outline" title="No targets yet" description="Create a target and keep track of how much you’ve saved." actionTitle="Create a target" onAction={openCreate} /> : goals.map((goal, index) => {
-          const targetAmount = Number(goal.target_amount) || 0;
-          const savedAmount = Number(goal.saved_amount) || 0;
-          const progress = Math.min(100, targetAmount > 0 ? savedAmount / targetAmount * 100 : 0);
-          return <FadeInView key={goal.id} delay={index * 45}>
-            <View style={styles.goalCard}>
-              <View style={styles.goalTop}>
-                <View style={styles.goalIcon}><Ionicons name="flag-outline" size={18} color={colors.primary} /></View>
-                <View style={styles.goalActions}><TouchableOpacity onPress={() => editSavedAmount(goal)}><Text style={styles.updateSaved}>Update saved</Text></TouchableOpacity><TouchableOpacity onPress={() => deleteMutation.mutate(goal.id)} accessibilityLabel={`Remove ${goal.name}`}><Ionicons name="trash-outline" size={18} color={colors.textMuted} /></TouchableOpacity></View>
-              </View>
-              <Text style={styles.goalName}>{goal.name}</Text>
-              <View style={styles.amountRow}><Text style={styles.saved}>{formatINR(savedAmount)}</Text><Text style={styles.target}>of {formatINR(targetAmount)}</Text></View>
-              <View style={styles.track}><View style={[styles.fill, { width: `${progress}%` }]} /></View>
-              <Text style={styles.progress}>{Math.round(progress)}% saved</Text>
-            </View>
-          </FadeInView>;
-        })}
+
+        {isLoading ? (
+          <LoadingSkeleton count={3} />
+        ) : isError ? (
+          <ErrorState
+            message="Could not load your savings targets."
+            onRetry={refetch}
+          />
+        ) : goals.length === 0 ? (
+          <EmptyState
+            icon="flag-outline"
+            title="No Targets Set"
+            description="Create a savings target to see your progress meters update in real-time."
+            actionTitle="Create First Target"
+            onAction={handleOpenCreate}
+          />
+        ) : (
+          goals.map((goal, index) => (
+            <FadeInView key={goal.id} delay={index * 50}>
+              <SavingsTargetCard
+                target={goal}
+                onUpdateSaved={() => handleOpenUpdateSaved(goal)}
+                onEdit={() => handleOpenEdit(goal)}
+                onDelete={() => setDeleteConfirmTargetId(goal.id)}
+              />
+            </FadeInView>
+          ))
+        )}
       </ScrollView>
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
-        <View style={styles.backdrop}><View style={styles.modal}>
-          <Text style={styles.modalTitle}>{editingId ? "Update saved amount" : "Create savings target"}</Text>
-          {!editingId && <TextInput value={name} onChangeText={setName} placeholder="What are you saving for?" placeholderTextColor={colors.textMuted} style={styles.input} />}
-          {!editingId && <TextInput value={target} onChangeText={setTarget} placeholder="Target amount (₹)" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={styles.input} />}
-          <TextInput value={saved} onChangeText={setSaved} placeholder="Already saved (₹)" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" style={styles.input} />
-          <View style={styles.actions}><TouchableOpacity onPress={() => setVisible(false)}><Text style={styles.cancel}>Cancel</Text></TouchableOpacity><TouchableOpacity onPress={editingId ? saveChanges : save} style={styles.save}><Text style={styles.saveText}>{editingId ? "Update" : "Save target"}</Text></TouchableOpacity></View>
-        </View></View>
+
+      {/* Create / Edit / Update Saved Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalTopBevel} pointerEvents="none" />
+
+            <Text style={styles.modalTitle}>
+              {isUpdatingSavedOnly
+                ? "Update Saved Amount"
+                : editingTargetId
+                ? "Edit Savings Target"
+                : "Create Savings Target"}
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              {isUpdatingSavedOnly
+                ? `Update how much you have saved so far for "${name}".`
+                : "Set a clear financial goal to keep your spending intentional."}
+            </Text>
+
+            {!isUpdatingSavedOnly && (
+              <RecessedInput
+                label="Target Name"
+                placeholder="e.g. New Laptop, Vacation, Rent Reserve"
+                value={name}
+                onChangeText={setName}
+                leadingIcon="flag-outline"
+              />
+            )}
+
+            {!isUpdatingSavedOnly && (
+              <RecessedInput
+                label="Target Amount (₹)"
+                placeholder="e.g. 50000"
+                keyboardType="decimal-pad"
+                value={targetAmount}
+                onChangeText={setTargetAmount}
+                leadingIcon="cash-outline"
+              />
+            )}
+
+            <RecessedInput
+              label={isUpdatingSavedOnly ? "Current Saved Total (₹)" : "Already Saved (₹)"}
+              placeholder="0"
+              keyboardType="decimal-pad"
+              value={savedAmount}
+              onChangeText={setSavedAmount}
+              leadingIcon="wallet-outline"
+            />
+
+            <View style={styles.modalActions}>
+              <SecondaryButton
+                title="Cancel"
+                onPress={closeModal}
+                disabled={isSaving}
+                size="medium"
+                style={styles.modalBtn}
+              />
+              <PrimaryButton
+                title={isSaving ? "Saving..." : isUpdatingSavedOnly ? "Update Total" : "Save Target"}
+                onPress={handleSave}
+                loading={isSaving}
+                size="medium"
+                style={styles.modalBtn}
+              />
+            </View>
+          </View>
+        </View>
       </Modal>
+
+      {/* Confirmation Dialog for Deleting Target */}
+      <ConfirmationDialog
+        visible={!!deleteConfirmTargetId}
+        title="Delete Savings Target?"
+        message="This savings goal will be removed. Your saved balance figures won't be altered."
+        confirmText="Delete Target"
+        isDestructive
+        onCancel={() => setDeleteConfirmTargetId(null)}
+        onConfirm={() => {
+          if (deleteConfirmTargetId) {
+            deleteMutation.mutate(deleteConfirmTargetId);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.background }, content: { padding: spacing.lg, paddingBottom: spacing.xxxl },
-  headerAdd: { backgroundColor: colors.primary, flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 9, paddingHorizontal: 11, paddingVertical: 8 }, headerAddText: { color: colors.textInverse, fontSize: 12, fontWeight: "700" },
-  introCard: { backgroundColor: colors.primary, borderRadius: 17, padding: spacing.xl, marginBottom: spacing.lg }, eyebrow: { color: colors.textInverse, opacity: 0.65, fontSize: 10, fontWeight: "700", letterSpacing: 1.1 }, intro: { color: colors.textInverse, fontSize: 16, lineHeight: 23, fontWeight: "600", marginTop: spacing.sm },
-  goalCard: { backgroundColor: colors.surface, borderColor: colors.surfaceBorder, borderWidth: 1, borderRadius: 16, padding: spacing.lg, marginBottom: spacing.md }, goalTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, goalIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: colors.primaryMuted, alignItems: "center", justifyContent: "center" }, goalName: { ...typography.h3, color: colors.textPrimary, marginTop: spacing.md }, amountRow: { flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: spacing.sm }, saved: { color: colors.textPrimary, fontSize: 24, fontWeight: "800" }, target: { color: colors.textSecondary, fontSize: 12 }, track: { height: 8, backgroundColor: colors.surfaceElevated, borderRadius: 8, overflow: "hidden", marginTop: spacing.md }, fill: { height: "100%", backgroundColor: colors.success, borderRadius: 8 }, progress: { color: colors.textMuted, fontSize: 11, marginTop: 7 },
-  goalActions: { flexDirection: "row", alignItems: "center", gap: spacing.md }, updateSaved: { color: colors.primary, fontSize: 11, fontWeight: "700" },
-  backdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.48)", justifyContent: "center", padding: spacing.xl }, modal: { backgroundColor: colors.surface, borderRadius: 18, padding: spacing.xl }, modalTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.lg }, input: { borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 12, color: colors.textPrimary, marginBottom: spacing.sm }, actions: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: spacing.lg, marginTop: spacing.md }, cancel: { color: colors.textSecondary, fontSize: 13, fontWeight: "600" }, save: { borderRadius: 9, backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: 11 }, saveText: { color: colors.textInverse, fontSize: 13, fontWeight: "700" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  newTargetBtn: {
+    padding: 2,
+  },
+  introCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    position: "relative",
+    overflow: "hidden",
+    ...shadows.sm,
+  },
+  summaryCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...shadows.card,
+  },
+  summaryEyebrow: {
+    ...typography.caption,
+    color: colors.textInverse,
+    opacity: 0.8,
+    letterSpacing: 1,
+    fontWeight: "700",
+  },
+  summaryAmount: {
+    ...typography.amount,
+    color: colors.textInverse,
+    fontSize: 28,
+    marginTop: spacing.xs,
+  },
+  summaryLabel: {
+    ...typography.caption,
+    color: colors.textInverse,
+    opacity: 0.85,
+  },
+  summaryFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.22)",
+  },
+  summaryRemaining: {
+    ...typography.caption,
+    color: colors.textInverse,
+    fontWeight: "700",
+  },
+  introTopBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: colors.cardTopHighlight,
+  },
+  introHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  introEyebrow: {
+    ...typography.caption,
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.primary,
+    letterSpacing: 0.8,
+  },
+  introTitle: {
+    ...typography.body2,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    padding: spacing.xl,
+    position: "relative",
+    overflow: "hidden",
+    ...shadows.floating,
+    ...(Platform.OS === "web"
+      ? {
+          boxShadow: "0 12px 32px rgba(0, 0, 0, 0.22)",
+        }
+      : {}),
+  },
+  modalTopBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: colors.cardTopHighlight,
+  },
+  modalTitle: {
+    ...typography.h2,
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.textPrimary,
+  },
+  modalSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: spacing.lg,
+    lineHeight: 16,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  modalBtn: {
+    flex: 1,
+  },
 });

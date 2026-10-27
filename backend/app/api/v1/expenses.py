@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cloudinary import upload_image
@@ -99,6 +99,17 @@ async def get_expense(
     await group_service.verify_membership(expense.group_id, current_user.id)
 
     return ExpenseResponse.model_validate(expense)
+
+
+@router.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_expense(
+    expense_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete an expense created by the current user when no member has paid."""
+    expense_service = ExpenseService(db)
+    await expense_service.delete_expense(expense_id, current_user)
 
 
 @router.post("/expenses/{expense_id}/close", response_model=ExpenseResponse)

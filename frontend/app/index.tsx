@@ -28,7 +28,7 @@ export default function SplashScreen() {
             <Ionicons name="wallet-outline" size={44} color={colors.primary} />
           </View>
         </PulseView>
-        <Text style={styles.title}>Team Expense Tracker</Text>
+        <Text style={styles.title}>Expense Tracker</Text>
         <Text style={styles.subtitle}>
           Split expenses. Track payments. Stay settled.
         </Text>

@@ -12,9 +12,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { getGroupDetail, getGroupMembers } from "../../../src/api/groups";
+import { deleteGroup, getGroupDetail, getGroupMembers } from "../../../src/api/groups";
 import { getGroupExpenses } from "../../../src/api/expenses";
 import { getGroupBalances } from "../../../src/api/balances";
 import { useAuthStore } from "../../../src/store/authStore";
@@ -26,11 +26,28 @@ import { MemberRow } from "../../../src/components/group/MemberRow";
 import { LoadingState } from "../../../src/components/common/LoadingState";
 import { EmptyState } from "../../../src/components/common/EmptyState";
 import { Button } from "../../../src/components/common/Button";
+import { ConfirmModal } from "../../../src/components/common/ConfirmModal";
 
 export default function GroupDetailScreen() {
   const { groupId } = useLocalSearchParams<{ groupId: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const [deleteGroupModalVisible, setDeleteGroupModalVisible] = React.useState(false);
+
+  const deleteGroupMutation = useMutation({
+    mutationFn: () => deleteGroup(groupId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["groups"] }),
+        queryClient.invalidateQueries({ queryKey: ["allExpenses"] }),
+        queryClient.invalidateQueries({ queryKey: ["monthlySpending"] }),
+      ]);
+      setDeleteGroupModalVisible(false);
+      router.replace("/(tabs)/groups");
+    },
+    onError: (error: Error) => Alert.alert("Could not delete group", error.message),
+  });
 
   // Group Details
   const {
@@ -157,13 +174,14 @@ export default function GroupDetailScreen() {
         }}
 
         rightAction={
-          <TouchableOpacity
-            style={styles.shareBtn}
-            onPress={handleShareInviteCode}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="share-social-outline" size={20} color={colors.primary} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.shareBtn} onPress={handleShareInviteCode} activeOpacity={0.7} accessibilityLabel="Share group invite">
+              <Ionicons name="share-social-outline" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            {isGroupLeader && <TouchableOpacity style={styles.deleteGroupBtn} onPress={() => setDeleteGroupModalVisible(true)} accessibilityLabel="Delete group">
+              <Ionicons name="trash-outline" size={19} color={colors.danger} />
+            </TouchableOpacity>}
+          </View>
         }
       />
 
@@ -285,6 +303,16 @@ export default function GroupDetailScreen() {
           ))
         )}
       </ScrollView>
+      <ConfirmModal
+        visible={deleteGroupModalVisible}
+        title="Delete this group?"
+        message="This permanently deletes the group and all of its expenses, splits, payment proofs, and deadline history for every member. This cannot be undone."
+        confirmText="Delete Group"
+        confirmVariant="danger"
+        loading={deleteGroupMutation.isPending}
+        onConfirm={() => deleteGroupMutation.mutate()}
+        onCancel={() => setDeleteGroupModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -309,6 +337,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  deleteGroupBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.surfaceBorder, alignItems: "center", justifyContent: "center" },
   groupInfoCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,

@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { StyleSheet, Text, View, Animated, Easing } from "react-native";
 import { MonthlySpendingBucket } from "../../types/models";
 import { formatINR } from "../../utils/formatters";
 import { colors, spacing } from "../../theme/colors";
@@ -14,6 +14,55 @@ function shortMonth(value: string) {
   return new Date(year, month - 1, 1).toLocaleDateString("en-IN", { month: "short" });
 }
 
+function BarColumn({
+  item,
+  max,
+  compact,
+  index,
+}: {
+  item: MonthlySpendingBucket;
+  max: number;
+  compact: boolean;
+  index: number;
+}) {
+  const anim = useRef(new Animated.Value(0)).current;
+  const personal = Number(item.personal_total) || 0;
+  const group = Number(item.your_group_share) || 0;
+  const total = personal + group;
+  const targetHeight = Math.max(4, (total / max) * (compact ? 72 : 142));
+  const groupHeight = total > 0 ? (group / total) * targetHeight : 0;
+
+  useEffect(() => {
+    anim.setValue(0);
+    const animation = Animated.timing(anim, {
+      toValue: targetHeight,
+      duration: 520,
+      delay: index * 40,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+      isInteraction: false,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [anim, index, targetHeight]);
+
+  const animatedHeight = anim.interpolate({
+    inputRange: [0, targetHeight || 1],
+    outputRange: [2, targetHeight],
+  });
+
+  return (
+    <View style={styles.barColumn}>
+      {!compact && <Text style={styles.barValue}>{formatINR(total)}</Text>}
+      <Animated.View style={[styles.bar, compact && styles.barCompact, { height: animatedHeight }]}>
+        <View style={[styles.groupSegment, { height: groupHeight }]} />
+        <View style={[styles.personalSegment, { height: Math.max(2, targetHeight - groupHeight) }]} />
+      </Animated.View>
+      <Text style={styles.month}>{shortMonth(item.month)}</Text>
+    </View>
+  );
+}
+
 export function MonthlyBarChart({ months, compact = false }: Props) {
   const max = Math.max(
     1,
@@ -23,27 +72,28 @@ export function MonthlyBarChart({ months, compact = false }: Props) {
   return (
     <View style={[styles.chart, compact && styles.chartCompact]}>
       <View style={[styles.bars, compact && styles.barsCompact]}>
-        {months.map((item) => {
-          const personal = Number(item.personal_total) || 0;
-          const group = Number(item.your_group_share) || 0;
-          const height = Math.max(3, ((personal + group) / max) * (compact ? 72 : 142));
-          const groupHeight = (group / Math.max(1, personal + group)) * height;
-          return (
-            <View key={item.month} style={styles.barColumn}>
-              {!compact && <Text style={styles.barValue}>{formatINR(personal + group)}</Text>}
-              <View style={[styles.bar, compact && styles.barCompact, { height }]}>
-                <View style={[styles.groupSegment, { height: groupHeight }]} />
-                <View style={[styles.personalSegment, { height: Math.max(2, height - groupHeight) }]} />
-              </View>
-              <Text style={styles.month}>{shortMonth(item.month)}</Text>
-            </View>
-          );
-        })}
+        {months.map((item, index) => (
+          <BarColumn
+            key={item.month}
+            item={item}
+            max={max}
+            compact={compact}
+            index={index}
+          />
+        ))}
       </View>
-      {!compact && <View style={styles.legend}>
-        <View style={styles.legendItem}><View style={styles.personalDot} /><Text style={styles.legendText}>Personal</Text></View>
-        <View style={styles.legendItem}><View style={styles.groupDot} /><Text style={styles.legendText}>Your group share</Text></View>
-      </View>}
+      {!compact && (
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={styles.personalDot} />
+            <Text style={styles.legendText}>Personal</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={styles.groupDot} />
+            <Text style={styles.legendText}>Your group share</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }

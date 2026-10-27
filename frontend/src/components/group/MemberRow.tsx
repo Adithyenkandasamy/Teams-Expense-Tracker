@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { GroupMember } from "../../types/models";
 import { colors, spacing, typography } from "../../theme/colors";
 import { Avatar } from "../common/Avatar";
@@ -8,9 +9,10 @@ import { Badge } from "../common/Badge";
 interface MemberRowProps {
   member: GroupMember;
   isCurrentUser?: boolean;
+  onRemove?: () => void;
 }
 
-export const MemberRow: React.FC<MemberRowProps> = ({ member, isCurrentUser }) => {
+export const MemberRow: React.FC<MemberRowProps> = ({ member, isCurrentUser, onRemove }) => {
   const userName = member.user?.name || "Member";
   const userEmail = member.user?.email || "";
   const profileImage = member.user?.profile_image;
@@ -35,12 +37,17 @@ export const MemberRow: React.FC<MemberRowProps> = ({ member, isCurrentUser }) =
         </View>
       </View>
 
-      <Badge
-        label={isLeader ? "Group Leader" : "Member"}
-        color={isLeader ? colors.secondary : colors.textMuted}
-        bg={isLeader ? colors.secondaryMuted : colors.surfaceBorder}
-        size="small"
-      />
+      <View style={styles.rightActions}>
+        <Badge
+          label={isLeader ? "Group Leader" : "Member"}
+          color={isLeader ? colors.secondary : colors.textMuted}
+          bg={isLeader ? colors.secondaryMuted : colors.surfaceBorder}
+          size="small"
+        />
+        {onRemove && <TouchableOpacity style={styles.removeButton} onPress={onRemove} accessibilityLabel={`Remove ${userName} from group`}>
+          <Ionicons name="person-remove-outline" size={17} color={colors.danger} />
+        </TouchableOpacity>}
+      </View>
     </View>
   );
 };
@@ -54,6 +61,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceBorder,
   },
+  rightActions: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  removeButton: { width: 32, height: 32, borderRadius: 9, backgroundColor: colors.dangerBg, alignItems: "center", justifyContent: "center" },
   leftSection: {
     flexDirection: "row",
     alignItems: "center",

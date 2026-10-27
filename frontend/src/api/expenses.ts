@@ -78,3 +78,7 @@ export async function closeExpense(expenseId: string): Promise<Expense> {
   const response = await apiClient.post<Expense>(`/expenses/${expenseId}/close`);
   return response.data;
 }
+
+export async function deleteExpense(expenseId: string): Promise<void> {
+  await apiClient.delete(`/expenses/${expenseId}`);
+}

@@ -55,6 +55,7 @@ export const Input: React.FC<InputProps> = ({
 
 const styles = StyleSheet.create({
   container: {
+    width: "100%",
     marginBottom: spacing.md,
   },
   label: {

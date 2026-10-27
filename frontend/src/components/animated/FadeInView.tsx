@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, ViewStyle, StyleProp, Platform } from "react-native";
+import { Animated, Easing, ViewStyle, StyleProp, Platform } from "react-native";
 
 interface FadeInViewProps {
   children: React.ReactNode;
@@ -18,23 +18,38 @@ export const FadeInView: React.FC<FadeInViewProps> = ({
 }) => {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(slideDistance)).current;
+  const scale = useRef(new Animated.Value(0.99)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const entrance = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
         duration,
         delay,
+        easing: Easing.out(Easing.quad),
         useNativeDriver: Platform.OS !== "web",
+        isInteraction: false,
       }),
       Animated.timing(translateY, {
         toValue: 0,
         duration,
         delay,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: Platform.OS !== "web",
+        isInteraction: false,
       }),
-    ]).start();
-  }, [delay, duration, opacity, translateY]);
+      Animated.timing(scale, {
+        toValue: 1,
+        duration,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: Platform.OS !== "web",
+        isInteraction: false,
+      }),
+    ]);
+    entrance.start();
+    return () => entrance.stop();
+  }, [delay, duration, opacity, scale, slideDistance, translateY]);
 
   return (
     <Animated.View
@@ -42,7 +57,7 @@ export const FadeInView: React.FC<FadeInViewProps> = ({
         style,
         {
           opacity,
-          transform: [{ translateY }],
+          transform: [{ translateY }, { scale }],
         },
       ]}
     >

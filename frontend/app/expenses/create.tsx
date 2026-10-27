@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,12 +23,33 @@ import { useAuthStore } from "../../src/store/authStore";
 import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { formatINR } from "../../src/utils/formatters";
 import { Header } from "../../src/components/common/Header";
-import { Input } from "../../src/components/common/Input";
-import { Button } from "../../src/components/common/Button";
 import { Avatar } from "../../src/components/common/Avatar";
 import { FadeInView } from "../../src/components/animated";
+import {
+  RecessedInput,
+  PrimaryButton,
+  SecondaryButton,
+  CategoryButton,
+  RaisedIconContainer,
+  EmptyState,
+} from "../../src/components/skeuomorphic";
 
-const CATEGORIES = ["Food & Drinks", "Groceries", "Rent", "Utilities", "Travel", "Entertainment", "Other"];
+const CATEGORIES = [
+  "Food & Drinks",
+  "Groceries",
+  "Rent",
+  "Utilities",
+  "Travel",
+  "Entertainment",
+  "Other",
+];
+
+const DEADLINE_OPTIONS = [
+  { days: 3, label: "3 days" },
+  { days: 7, label: "1 week" },
+  { days: 14, label: "2 weeks" },
+  { days: 30, label: "1 month" },
+];
 
 export default function CreateExpenseScreen() {
   const { groupId: initialGroupId } = useLocalSearchParams<{ groupId?: string }>();
@@ -42,17 +63,19 @@ export default function CreateExpenseScreen() {
     queryFn: getGroups,
   });
 
+  const [expenseScope, setExpenseScope] = useState<"PERSONAL" | "GROUP">(
+    initialGroupId ? "GROUP" : "PERSONAL"
+  );
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     initialGroupId || (groups[0]?.id || "")
   );
-  const [expenseScope, setExpenseScope] = useState<"PERSONAL" | "GROUP">(initialGroupId ? "GROUP" : "PERSONAL");
   const [groupSearch, setGroupSearch] = useState("");
 
   // Group members for the chosen group
   const { data: members = [] } = useQuery({
     queryKey: ["groupMembers", selectedGroupId],
     queryFn: () => getGroupMembers(selectedGroupId),
-    enabled: !!selectedGroupId,
+    enabled: !!selectedGroupId && expenseScope === "GROUP",
   });
 
   const [amount, setAmount] = useState("");
@@ -60,7 +83,22 @@ export default function CreateExpenseScreen() {
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
-  const [deadlineDays, setDeadlineDays] = useState(3);
+  const [deadlineDays, setDeadlineDays] = useState(7);
+
+  // Field errors
+  const [amountError, setAmountError] = useState("");
+  const [descError, setDescError] = useState("");
+  const [groupError, setGroupError] = useState("");
+
+  // Success dialog state
+  const [successData, setSuccessData] = useState<{
+    amount: number;
+    scope: "PERSONAL" | "GROUP";
+    groupName?: string;
+    splitPerPerson?: number;
+    memberCount?: number;
+    expenseId?: string;
+  } | null>(null);
 
   // Auto-select all members initially when members load
   React.useEffect(() => {
@@ -76,12 +114,11 @@ export default function CreateExpenseScreen() {
     }
   }, [groups, selectedGroupId]);
 
-
   // Toggle member selection
   const toggleMember = (userId: string) => {
     if (selectedMemberIds.includes(userId)) {
       if (selectedMemberIds.length <= 1) {
-        Alert.alert("Notice", "At least one member must be included in the split.");
+        Alert.alert("Notice", "At least one participant must be included in the split.");
         return;
       }
       setSelectedMemberIds(selectedMemberIds.filter((id) => id !== userId));
@@ -94,12 +131,12 @@ export default function CreateExpenseScreen() {
   const previewSplitAmount = useMemo(() => {
     const num = parseFloat(amount);
     if (isNaN(num) || num <= 0 || selectedMemberIds.length === 0) return 0;
-    return num / selectedMemberIds.length;
+    return Math.round((num / selectedMemberIds.length) * 100) / 100;
   }, [amount, selectedMemberIds]);
 
   // Receipt image picker
   const pickReceiptImage = async () => {
-    Alert.alert("Attach Receipt", "Choose receipt photo from camera or library", [
+    Alert.alert("Attach Receipt", "Choose receipt photo source", [
       {
         text: "Take Photo",
         onPress: async () => {
@@ -137,31 +174,30 @@ export default function CreateExpenseScreen() {
   // Create expense mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      const parsedAmount = parseFloat(amount).toFixed(2);
+
       if (expenseScope === "PERSONAL") {
         return createPersonalExpense({
-          amount: parseFloat(amount).toFixed(2),
+          amount: parsedAmount,
           description: description.trim(),
           category,
         });
       }
+
       const deadlineDate = new Date();
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
 
       const created = await createExpense(selectedGroupId, {
-        amount: parseFloat(amount).toFixed(2),
+        amount: parsedAmount,
         description: description.trim(),
         category,
         split_between: selectedMemberIds,
         deadline: deadlineDate.toISOString(),
       });
 
-      // If receipt attached, upload it through backend/Cloudinary flow
-      if (receiptImage) {
+      if (receiptImage && created?.id) {
         try {
-          const updated = await uploadReceipt(created.id, receiptImage);
-          if (updated?.receipt_url) {
-            created.receipt_url = updated.receipt_url;
-          }
+          await uploadReceipt(created.id, receiptImage);
         } catch (uploadErr) {
           console.warn("Receipt upload error:", uploadErr);
         }
@@ -169,76 +205,89 @@ export default function CreateExpenseScreen() {
 
       return created;
     },
-    onSuccess: (created) => {
-      if (expenseScope === "PERSONAL") {
-        queryClient.invalidateQueries({ queryKey: ["personalExpenses"] });
-        queryClient.invalidateQueries({ queryKey: ["monthlySpending"] });
-        if (Platform.OS === "web") {
-          router.replace("/(tabs)/personal");
-        } else {
-          Alert.alert("Saved", "Personal expense added.", [
-            { text: "View personal expenses", onPress: () => router.replace("/(tabs)/personal") },
-          ]);
-        }
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: ["groupExpenses", selectedGroupId] });
+    onSuccess: (created: any) => {
+      const num = parseFloat(amount);
+      const chosenGroup = groups.find((g) => g.id === selectedGroupId);
+
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ["allExpenses"] });
       queryClient.invalidateQueries({ queryKey: ["monthlySpending"] });
-      queryClient.invalidateQueries({ queryKey: ["groupBalances", selectedGroupId] });
-      queryClient.invalidateQueries({ queryKey: ["expenseDetail", created.id] });
-
-      if (Platform.OS === "web") {
-        router.replace(`/expenses/${created.id}` as any);
-      } else {
-        Alert.alert("Success", "Expense created successfully!", [
-          {
-            text: "View Expense",
-            onPress: () => router.replace(`/expenses/${created.id}` as any),
-          },
-        ]);
+      queryClient.invalidateQueries({ queryKey: ["personalExpenses"] });
+      if (selectedGroupId) {
+        queryClient.invalidateQueries({ queryKey: ["groupExpenses", selectedGroupId] });
+        queryClient.invalidateQueries({ queryKey: ["groupBalances", selectedGroupId] });
       }
+
+      setSuccessData({
+        amount: num,
+        scope: expenseScope,
+        groupName: chosenGroup?.name,
+        splitPerPerson: previewSplitAmount,
+        memberCount: selectedMemberIds.length,
+        expenseId: created?.id,
+      });
     },
     onError: (err: any) => {
       Alert.alert(
         "Creation Error",
-        err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Could not create expense."
+        err?.response?.data?.detail || err?.response?.data?.message || err?.message || "Could not record expense."
       );
     },
   });
 
   const handleSubmit = () => {
-    if (expenseScope === "GROUP" && !selectedGroupId) {
-      Alert.alert("Validation", "Please select a group.");
-      return;
-    }
+    let hasError = false;
+    setAmountError("");
+    setDescError("");
+    setGroupError("");
+
     const num = parseFloat(amount);
     if (isNaN(num) || num <= 0) {
-      Alert.alert("Validation", "Please enter a valid positive amount.");
-      return;
+      setAmountError("Please enter a valid amount greater than ₹0.");
+      hasError = true;
     }
+
     if (!description.trim()) {
-      Alert.alert("Validation", "Please enter a description for the expense.");
-      return;
+      setDescError("Please enter what this expense was for.");
+      hasError = true;
     }
-    if (expenseScope === "GROUP" && selectedMemberIds.length === 0) {
-      Alert.alert("Validation", "Please select at least one member to split with.");
-      return;
+
+    if (expenseScope === "GROUP") {
+      if (!selectedGroupId) {
+        setGroupError("Please select a group for this expense.");
+        hasError = true;
+      }
+      if (selectedMemberIds.length === 0) {
+        Alert.alert("Validation", "Please select at least one participant to split with.");
+        hasError = true;
+      }
     }
+
+    if (hasError) return;
 
     createMutation.mutate();
   };
+
+  const filteredGroups = useMemo(() => {
+    if (!groupSearch.trim()) return groups;
+    return groups.filter((g) =>
+      g.name.toLowerCase().includes(groupSearch.trim().toLowerCase())
+    );
+  }, [groups, groupSearch]);
+
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <Header
         title="Add Expense"
+        subtitle="Log personal spend or split with team"
         showBack
         onBack={() => {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace("/(tabs)/expenses" as any);
+            router.replace("/(tabs)/home" as any);
           }
         }}
       />
@@ -248,244 +297,445 @@ export default function CreateExpenseScreen() {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Scope Selection: Two tactile cards */}
         <FadeInView delay={0}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>WHAT IS THIS FOR?</Text>
-          <View style={styles.scopePicker}>
-            {(["PERSONAL", "GROUP"] as const).map((scope) => (
-              <TouchableOpacity key={scope} onPress={() => setExpenseScope(scope)} style={[styles.scopeOption, expenseScope === scope && styles.scopeOptionActive]}>
-                <Ionicons name={scope === "PERSONAL" ? "person-outline" : "people-outline"} size={17} color={expenseScope === scope ? colors.textInverse : colors.textSecondary} />
-                <Text style={[styles.scopeOptionText, expenseScope === scope && styles.scopeOptionTextActive]}>{scope === "PERSONAL" ? "My expense" : "Group expense"}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+          <Text style={styles.sectionHeaderLabel}>EXPENSE SCOPE</Text>
+          <View style={styles.scopeCardsRow}>
+            {/* My Expense Card */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => setExpenseScope("PERSONAL")}
+              style={[
+                styles.scopeCard,
+                styles.scopeCardFirst,
+                expenseScope === "PERSONAL" ? styles.scopeCardActive : styles.scopeCardInactive,
+              ]}
+            >
+              {expenseScope === "PERSONAL" && <View style={styles.cardSelectedBevel} pointerEvents="none" />}
+              {expenseScope !== "PERSONAL" && <View style={styles.cardTopBevel} pointerEvents="none" />}
 
-        {expenseScope === "GROUP" && <>
-          {/* Creator Notice (Business rule: creator == payer == Expense Leader) */}
-        <View style={styles.leaderNotice}>
-          <Ionicons name="information-circle-outline" size={18} color={colors.textPrimary} />
-          <Text style={styles.leaderNoticeText}>
-            You will be recorded as having paid the full bill and will be the{" "}
-            <Text style={{ fontWeight: "600", color: colors.textPrimary }}>
-              Expense Leader
-            </Text>{" "}
-            for this expense.
-          </Text>
-        </View>
+              <RaisedIconContainer
+                size={40}
+                variant={expenseScope === "PERSONAL" ? "recessed" : "raised"}
+              >
+                <Ionicons
+                  name="person"
+                  size={19}
+                  color={expenseScope === "PERSONAL" ? colors.primary : colors.textSecondary}
+                />
+              </RaisedIconContainer>
 
-        {/* Group Selector */}
-        {groups.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Group</Text>
-            <TextInput value={groupSearch} onChangeText={setGroupSearch} placeholder="Search your groups" placeholderTextColor={colors.textMuted} style={styles.groupSearch} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-              {groups.filter((g) => g.name.toLowerCase().includes(groupSearch.trim().toLowerCase())).map((g) => (
-                <TouchableOpacity
-                  key={g.id}
+              <View style={styles.scopeCardText}>
+                <Text
                   style={[
-                    styles.groupChip,
-                    selectedGroupId === g.id && styles.groupChipActive,
+                    styles.scopeTitle,
+                    expenseScope === "PERSONAL" && styles.scopeTitleActive,
                   ]}
-                  onPress={() => setSelectedGroupId(g.id)}
-                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.groupChipText,
-                      selectedGroupId === g.id && styles.groupChipTextActive,
-                    ]}
-                  >
-                    {g.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-        {groups.length === 0 && <Text style={styles.helperText}>Create or join a group before adding a shared expense.</Text>}
-        </>}
+                  My Expense
+                </Text>
+                <Text style={styles.scopeSub}>Personal Budget</Text>
+              </View>
 
+              {expenseScope === "PERSONAL" && (
+                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+              )}
+            </TouchableOpacity>
 
-        {/* Amount Input */}
-        <View style={styles.amountCard}>
-          <Text style={styles.amountLabel}>Total Bill Amount</Text>
-          <View style={styles.amountInputRow}>
-            <Text style={styles.currencySymbol}>₹</Text>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="0.00"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="decimal-pad"
-              style={styles.amountInputField}
-            />
+            {/* Group Expense Card */}
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() => setExpenseScope("GROUP")}
+              style={[
+                styles.scopeCard,
+                expenseScope === "GROUP" ? styles.scopeCardActive : styles.scopeCardInactive,
+              ]}
+            >
+              {expenseScope === "GROUP" && <View style={styles.cardSelectedBevel} pointerEvents="none" />}
+              {expenseScope !== "GROUP" && <View style={styles.cardTopBevel} pointerEvents="none" />}
+
+              <RaisedIconContainer
+                size={40}
+                variant={expenseScope === "GROUP" ? "recessed" : "raised"}
+              >
+                <Ionicons
+                  name="people"
+                  size={19}
+                  color={expenseScope === "GROUP" ? colors.primary : colors.textSecondary}
+                />
+              </RaisedIconContainer>
+
+              <View style={styles.scopeCardText}>
+                <Text
+                  style={[
+                    styles.scopeTitle,
+                    expenseScope === "GROUP" && styles.scopeTitleActive,
+                  ]}
+                >
+                  Group Expense
+                </Text>
+                <Text style={styles.scopeSub}>Split with Members</Text>
+              </View>
+
+              {expenseScope === "GROUP" && (
+                <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+              )}
+            </TouchableOpacity>
           </View>
-        </View>
+        </FadeInView>
+
+        {/* Large Amount Recessed Input Plate */}
+        <FadeInView delay={60}>
+          <View style={styles.amountCard}>
+            <View style={styles.amountTopBevel} pointerEvents="none" />
+            <Text style={styles.amountLabel}>AMOUNT SPENT</Text>
+
+            <View style={styles.amountInputRow}>
+              <Text style={styles.currencySymbol}>₹</Text>
+              <TextInput
+                value={amount}
+                onChangeText={(text) => {
+                  setAmount(text);
+                  if (amountError) setAmountError("");
+                }}
+                placeholder="0"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="decimal-pad"
+                style={styles.amountInput}
+              />
+            </View>
+
+            {amountError ? (
+              <Text style={styles.amountErrorText}>{amountError}</Text>
+            ) : null}
+          </View>
+        </FadeInView>
 
         {/* Description & Category */}
-        <View style={styles.section}>
-          <Input
-            label="Expense Description *"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="e.g. Weekly Groceries, Pizza Night, WiFi"
-          />
+        <FadeInView delay={120}>
+          <View style={styles.formCard}>
+            <View style={styles.cardTopBevel} pointerEvents="none" />
 
-          <Text style={styles.label}>Category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.categoryChip,
-                  category === cat && styles.categoryChipActive,
-                ]}
-                onPress={() => setCategory(cat)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    category === cat && styles.categoryChipTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            <RecessedInput
+              label="Description / Merchant"
+              value={description}
+              onChangeText={(text) => {
+                setDescription(text);
+                if (descError) setDescError("");
+              }}
+              placeholder="e.g.Groceries, Electricity bill"
+              leadingIcon="receipt-outline"
+              error={descError}
+            />
 
-        {expenseScope === "GROUP" && <>
-        {/* Reminder Deadline */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Payment Reminder Deadline</Text>
-          <View style={styles.deadlineRow}>
-            {[1, 3, 5, 7].map((days) => (
-              <TouchableOpacity
-                key={days}
-                style={[
-                  styles.deadlineChip,
-                  deadlineDays === days && styles.deadlineChipActive,
-                ]}
-                onPress={() => setDeadlineDays(days)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.deadlineChipText,
-                    deadlineDays === days && styles.deadlineChipTextActive,
-                  ]}
-                >
-                  {days} {days === 1 ? "day" : "days"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={styles.helperText}>
-            Deadlines act as reminder triggers and auto-extend if unpaid.
-          </Text>
-        </View>
-
-        {/* Receipt Attachment */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Attach Receipt Image (Optional)</Text>
-          {receiptImage ? (
-            <View style={styles.receiptPreviewCard}>
-              <Image source={{ uri: receiptImage }} style={styles.receiptThumb} />
-              <TouchableOpacity
-                style={styles.removeReceiptBtn}
-                onPress={() => setReceiptImage(null)}
-              >
-                <Ionicons name="trash-outline" size={16} color={colors.danger} />
-                <Text style={styles.removeReceiptText}>Remove</Text>
-              </TouchableOpacity>
+            <Text style={styles.fieldLabel}>CATEGORY</Text>
+            <View style={styles.categoriesWrap}>
+              {CATEGORIES.map((cat) => (
+                <CategoryButton
+                  key={cat}
+                  category={cat}
+                  selected={category === cat}
+                  onPress={() => setCategory(cat)}
+                  size="compact"
+                />
+              ))}
             </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.uploadReceiptBtn}
-              onPress={pickReceiptImage}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="camera-outline" size={20} color={colors.textPrimary} />
-              <Text style={styles.uploadReceiptText}>Take photo or upload bill</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Member Split Selection & Preview */}
-        <View style={styles.section}>
-          <Text style={styles.label}>Split Between Members ({selectedMemberIds.length})</Text>
-          <Text style={styles.helperText}>
-            Select all participants who share this cost (including you).
-          </Text>
-
-          <View style={styles.membersList}>
-            {members.map((m) => {
-              const isSelected = selectedMemberIds.includes(m.user_id);
-              const isYou = m.user_id === currentUser?.id;
-              return (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[styles.memberItem, isSelected && styles.memberItemSelected]}
-                  onPress={() => toggleMember(m.user_id)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.memberLeft}>
-                    <Avatar name={m.user?.name || "Member"} imageUrl={m.user?.profile_image} size={38} />
-                    <View style={styles.memberInfo}>
-                      <Text style={styles.memberName} numberOfLines={1}>
-                        {m.user?.name} {isYou ? "(You)" : ""}
-                      </Text>
-                      {isSelected && previewSplitAmount > 0 && (
-                        <Text style={styles.memberSplitAmount}>
-                          Share: {formatINR(previewSplitAmount)}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-
-                  <Ionicons
-                    name={isSelected ? "checkbox" : "square-outline"}
-                    size={22}
-                    color={isSelected ? colors.primary : colors.textMuted}
-                  />
-                </TouchableOpacity>
-              );
-            })}
           </View>
-        </View>
+        </FadeInView>
 
-        {/* Split Preview Summary Card */}
-        {previewSplitAmount > 0 && (
-          <View style={styles.previewCard}>
-            <Text style={styles.previewTitle}>Split Preview</Text>
-            <View style={styles.previewRow}>
-              <Text style={styles.previewLabel}>Total Amount:</Text>
-              <Text style={styles.previewValue}>{formatINR(amount)}</Text>
-            </View>
-            <View style={styles.previewRow}>
-              <Text style={styles.previewLabel}>Each Person Owes:</Text>
-              <Text style={[styles.previewValue, { color: colors.textPrimary }]}>
-                {formatINR(previewSplitAmount)}
+        {/* Group Expense Fields (Exclusively in GROUP mode) */}
+        {expenseScope === "GROUP" && (
+          <FadeInView delay={180}>
+            {/* Expense Leader Notice */}
+            <View style={styles.leaderNoticeCard}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.primary} />
+              <Text style={styles.leaderNoticeText}>
+                You are paying this full bill upfront. Group members will be assigned their equal split to settle up with you.
               </Text>
             </View>
-          </View>
+
+            {/* Group Picker */}
+            <View style={styles.formCard}>
+              <View style={styles.cardTopBevel} pointerEvents="none" />
+              <Text style={styles.fieldLabel}>SELECT GROUP</Text>
+
+              {groups.length > 3 && (
+                <RecessedInput
+                  placeholder="Filter groups..."
+                  value={groupSearch}
+                  onChangeText={setGroupSearch}
+                  leadingIcon="search-outline"
+                  onClear={() => setGroupSearch("")}
+                />
+              )}
+
+              {filteredGroups.length === 0 ? (
+                <Text style={styles.emptyHintText}>No matching groups found.</Text>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.groupScroll}>
+                  {filteredGroups.map((g) => {
+                    const isSelected = selectedGroupId === g.id;
+                    return (
+                      <TouchableOpacity
+                        key={g.id}
+                        onPress={() => {
+                          setSelectedGroupId(g.id);
+                          if (groupError) setGroupError("");
+                        }}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.groupPill,
+                          isSelected ? styles.groupPillSelected : styles.groupPillUnselected,
+                        ]}
+                      >
+                        <Ionicons
+                          name="people"
+                          size={15}
+                          color={isSelected ? colors.primary : colors.textMuted}
+                        />
+                        <View>
+                          <Text
+                            style={[
+                              styles.groupPillName,
+                              isSelected && styles.groupPillNameSelected,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {g.name}
+                          </Text>
+                          <Text style={styles.groupPillMembers}>
+                            {g.members?.length || 0} members
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+              {groupError ? <Text style={styles.fieldErrorText}>{groupError}</Text> : null}
+
+              {/* Participant Selection */}
+              <View style={styles.participantsSection}>
+                <View style={styles.participantHeaderRow}>
+                  <Text style={styles.fieldLabel}>SPLIT PARTICIPANTS ({selectedMemberIds.length}/{members.length})</Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedMemberIds(members.map((m) => m.user_id))}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.selectAllText}>Select All</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.membersGrid}>
+                  {members.map((member) => {
+                    const isIncluded = selectedMemberIds.includes(member.user_id);
+                    const isCurrent = member.user_id === currentUser?.id;
+
+                    return (
+                      <TouchableOpacity
+                        key={member.user_id}
+                        onPress={() => toggleMember(member.user_id)}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.memberChip,
+                          isIncluded ? styles.memberChipIncluded : styles.memberChipExcluded,
+                        ]}
+                      >
+                        <Avatar
+                          name={member.user?.name || "Member"}
+                          imageUrl={member.user?.profile_image}
+                          size={26}
+                        />
+                        <Text
+                          style={[
+                            styles.memberName,
+                            isIncluded && styles.memberNameIncluded,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {isCurrent ? "You" : member.user?.name || "Member"}
+                        </Text>
+                        <Ionicons
+                          name={isIncluded ? "checkmark-circle" : "ellipse-outline"}
+                          size={16}
+                          color={isIncluded ? colors.primary : colors.textMuted}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Equal-Split Live Preview Plaque */}
+              <View style={styles.splitPreviewPlaque}>
+                <View style={styles.splitPreviewTop} pointerEvents="none" />
+                <View style={styles.splitPreviewIcon}>
+                  <Ionicons name="calculator-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.splitPreviewText}>
+                  <Text style={styles.splitPreviewLabel}>EQUAL SPLIT PREVIEW</Text>
+                  <Text style={styles.splitPreviewAmount}>
+                    {formatINR(previewSplitAmount)}{" "}
+                    <Text style={styles.splitPerPerson}>/ person</Text>
+                  </Text>
+                  <Text style={styles.splitSubtext}>
+                    Across {selectedMemberIds.length} {selectedMemberIds.length === 1 ? "participant" : "participants"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Payment Reminder Deadline */}
+              <View style={styles.deadlinesSection}>
+                <Text style={styles.fieldLabel}>SETTLEMENT DEADLINE</Text>
+                <View style={styles.deadlinesRow}>
+                  {DEADLINE_OPTIONS.map((opt) => {
+                    const isSelected = deadlineDays === opt.days;
+                    return (
+                      <TouchableOpacity
+                        key={opt.days}
+                        onPress={() => setDeadlineDays(opt.days)}
+                        activeOpacity={0.8}
+                        style={[
+                          styles.deadlinePill,
+                          isSelected && styles.deadlinePillSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.deadlinePillText,
+                            isSelected && styles.deadlinePillTextSelected,
+                          ]}
+                        >
+                          {opt.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          </FadeInView>
         )}
-        </>}
+
+        {/* Receipt Attachment Section */}
+        <FadeInView delay={220}>
+          <View style={styles.formCard}>
+            <View style={styles.cardTopBevel} pointerEvents="none" />
+            <Text style={styles.fieldLabel}>RECEIPT PHOTO (OPTIONAL)</Text>
+
+            {receiptImage ? (
+              <View style={styles.receiptPreviewBox}>
+                <Image source={{ uri: receiptImage }} style={styles.receiptImage} />
+                <TouchableOpacity
+                  onPress={() => setReceiptImage(null)}
+                  style={styles.receiptRemoveBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close-circle" size={24} color={colors.negative} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <SecondaryButton
+                title="Attach Bill or Receipt"
+                onPress={pickReceiptImage}
+                icon={<Ionicons name="camera-outline" size={18} color={colors.primary} />}
+                size="small"
+              />
+            )}
+          </View>
+        </FadeInView>
 
         {/* Submit Button */}
-        <View style={styles.submitWrapper}>
-          <Button
-            title={expenseScope === "PERSONAL" ? "Save Personal Expense" : "Create Group Expense"}
+        <FadeInView delay={260} style={styles.submitSection}>
+          <PrimaryButton
+            title={createMutation.isPending ? "Recording Expense..." : "Save Expense"}
             onPress={handleSubmit}
             loading={createMutation.isPending}
-            variant="primary"
+            disabled={createMutation.isPending}
+            size="large"
+            icon={<Ionicons name="checkmark-done" size={20} color={colors.textInverse} />}
           />
-        </View>
         </FadeInView>
       </ScrollView>
+
+      {/* Success Dialog */}
+      <Modal
+        visible={!!successData}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setSuccessData(null);
+          router.replace("/(tabs)/home");
+        }}
+      >
+        <View style={styles.successBackdrop}>
+          <View style={styles.successCard}>
+            <View style={styles.cardTopBevel} pointerEvents="none" />
+
+            <RaisedIconContainer size={60} variant="raised" style={styles.successIcon}>
+              <Ionicons name="checkmark-circle" size={34} color={colors.positive} />
+            </RaisedIconContainer>
+
+            <Text style={styles.successTitle}>Expense Recorded</Text>
+            <Text style={styles.successAmount}>
+              {formatINR(successData?.amount || 0)}
+            </Text>
+
+            <View style={styles.successDetailsCard}>
+              <View style={styles.successDetailRow}>
+                <Text style={styles.successDetailLabel}>Type:</Text>
+                <Text style={styles.successDetailValue}>
+                  {successData?.scope === "PERSONAL" ? "Personal Expense" : "Group Expense"}
+                </Text>
+              </View>
+
+              {successData?.scope === "GROUP" && (
+                <>
+                  <View style={styles.successDetailRow}>
+                    <Text style={styles.successDetailLabel}>Group:</Text>
+                    <Text style={styles.successDetailValue} numberOfLines={1}>
+                      {successData?.groupName || "Group"}
+                    </Text>
+                  </View>
+                  <View style={styles.successDetailRow}>
+                    <Text style={styles.successDetailLabel}>Equal Split:</Text>
+                    <Text style={styles.successDetailValue}>
+                      {formatINR(successData?.splitPerPerson || 0)} across {successData?.memberCount} members
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            <View style={styles.successActions}>
+              {successData?.scope === "GROUP" && successData.expenseId ? (
+                <SecondaryButton
+                  title="View Expense Details"
+                  onPress={() => {
+                    const id = successData.expenseId;
+                    setSuccessData(null);
+                    router.replace(`/expenses/${id}` as any);
+                  }}
+                  size="medium"
+                  style={styles.successBtn}
+                />
+              ) : null}
+
+              <PrimaryButton
+                title="Done"
+                onPress={() => {
+                  setSuccessData(null);
+                  router.replace(
+                    successData?.scope === "PERSONAL" ? "/(tabs)/personal" : "/(tabs)/home"
+                  );
+                }}
+                size="medium"
+                style={styles.successBtn}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -502,55 +752,120 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
-  leaderNotice: {
+  sectionHeaderLabel: {
+    ...typography.caption,
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs + 2,
+    paddingHorizontal: 2,
+  },
+  scopeCardsRow: {
+    flexDirection: "row",
+    marginBottom: spacing.md,
+  },
+  scopeCard: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: spacing.md,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
+    position: "relative",
+    overflow: "hidden",
   },
-  leaderNoticeText: {
-    ...typography.caption,
-    color: colors.textSecondary,
+  scopeCardFirst: {
+    marginRight: spacing.sm,
+  },
+  scopeCardText: {
     flex: 1,
-    lineHeight: 18,
+    minWidth: 0,
+    marginLeft: spacing.sm,
   },
-  section: {
-    marginBottom: spacing.xl,
+  scopeCardInactive: {
+    backgroundColor: colors.surface,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    ...shadows.sm,
   },
-  scopePicker: { flexDirection: "row", gap: spacing.sm },
-  scopeOption: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: spacing.sm, borderWidth: 1, borderColor: colors.surfaceBorder, backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12 },
-  scopeOptionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  scopeOptionText: { ...typography.caption, color: colors.textSecondary, fontWeight: "600" },
-  scopeOptionTextActive: { color: colors.textInverse },
-  groupSearch: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 10, color: colors.textPrimary, marginBottom: spacing.sm },
-  sectionTitle: {
+  scopeCardActive: {
+    backgroundColor: colors.recessedBg,
+    borderColor: colors.primary,
+    borderTopColor: colors.recessedTopBorder,
+    borderBottomColor: colors.recessedBottomHighlight,
+    ...(Platform.OS === "web"
+      ? {
+          boxShadow: "inset 0 1px 4px rgba(35, 122, 87, 0.12)",
+        }
+      : {}),
+  },
+  cardTopBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.cardTopHighlight,
+  },
+  cardSelectedBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.recessedTopBorder,
+    opacity: 0.6,
+  },
+  scopeTitle: {
+    ...typography.body1,
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  scopeTitleActive: {
+    color: colors.primary,
+  },
+  scopeSub: {
     ...typography.caption,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   amountCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
-    marginBottom: spacing.xl,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    padding: spacing.lg,
     alignItems: "center",
+    marginBottom: spacing.md,
+    position: "relative",
+    overflow: "hidden",
     ...shadows.card,
+  },
+  amountTopBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: colors.cardTopHighlight,
   },
   amountLabel: {
     ...typography.caption,
+    fontSize: 10,
+    fontWeight: "700",
     color: colors.textMuted,
-    marginBottom: spacing.xs,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   amountInputRow: {
     flexDirection: "row",
@@ -558,217 +873,363 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   currencySymbol: {
-    ...typography.h1,
-    color: colors.textSecondary,
-    marginRight: 6,
+    fontSize: 32,
+    fontWeight: "800",
+    color: colors.primary,
+    marginRight: 4,
   },
-  amountInputField: {
-    fontSize: 36,
-    fontWeight: "700",
+  amountInput: {
+    fontSize: 40,
+    fontWeight: "800",
     color: colors.textPrimary,
     minWidth: 120,
-    maxWidth: 200,
     textAlign: "center",
-    paddingVertical: 2,
-    backgroundColor: "transparent",
-    borderWidth: 0,
+    paddingVertical: 0,
     ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
-  label: {
-    ...typography.body2,
-    fontWeight: "500",
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  helperText: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  chipsScroll: {
-    flexDirection: "row",
-  },
-  groupChip: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: 6,
-    marginRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  groupChipActive: {
-    backgroundColor: colors.textPrimary,
-    borderColor: colors.textPrimary,
-  },
-  groupChipText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "500",
-  },
-  groupChipTextActive: {
-    color: colors.textInverse,
-    fontWeight: "600",
-  },
-  categoryChip: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderRadius: 6,
-    marginRight: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.textPrimary,
-    borderColor: colors.textPrimary,
-  },
-  categoryChipText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "500",
-  },
-  categoryChipTextActive: {
-    color: colors.textInverse,
-    fontWeight: "600",
-  },
-  deadlineRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  deadlineChip: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    paddingVertical: 9,
-    alignItems: "center",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  deadlineChipActive: {
-    backgroundColor: colors.textPrimary,
-    borderColor: colors.textPrimary,
-  },
-  deadlineChipText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "500",
-  },
-  deadlineChipTextActive: {
-    color: colors.textInverse,
-    fontWeight: "600",
-  },
-  uploadReceiptBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.surfaceBorder,
-    paddingVertical: spacing.lg,
-  },
-  uploadReceiptText: {
-    ...typography.body2,
-    color: colors.textPrimary,
-    fontWeight: "500",
-  },
-  receiptPreviewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  receiptThumb: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-  },
-  removeReceiptBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    padding: spacing.sm,
-  },
-  removeReceiptText: {
+  amountErrorText: {
     ...typography.caption,
     color: colors.danger,
-    fontWeight: "500",
-  },
-  membersList: {
-    marginTop: spacing.sm,
-    gap: spacing.xs,
-  },
-  memberItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-  },
-  memberItemSelected: {
-    borderColor: colors.borderLight,
-    backgroundColor: colors.surfaceElevated,
-  },
-  memberLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  memberInfo: {
-    marginLeft: spacing.md,
-    flex: 1,
-  },
-  memberName: {
-    ...typography.body2,
-    fontWeight: "500",
-    color: colors.textPrimary,
-  },
-  memberSplitAmount: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  previewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    marginBottom: spacing.xl,
-  },
-  previewTitle: {
-    ...typography.caption,
-    color: colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-  },
-  previewRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 3,
-  },
-  previewLabel: {
-    ...typography.body2,
-    color: colors.textSecondary,
-  },
-  previewValue: {
-    ...typography.h3,
-    color: colors.textPrimary,
+    marginTop: 6,
     fontWeight: "600",
   },
-  submitWrapper: {
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    position: "relative",
+    overflow: "hidden",
+    ...shadows.card,
+  },
+  fieldLabel: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textSecondary,
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs + 2,
+    textTransform: "uppercase",
+  },
+  categoriesWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs + 2,
+  },
+  leaderNoticeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.recessedBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderLeftWidth: 3.5,
+    borderLeftColor: colors.primary,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  leaderNoticeText: {
+    ...typography.caption,
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  groupScroll: {
+    marginBottom: spacing.sm,
+  },
+  groupPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginRight: spacing.sm,
+  },
+  groupPillUnselected: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.surfaceBorder,
+  },
+  groupPillSelected: {
+    backgroundColor: colors.recessedBg,
+    borderColor: colors.primary,
+    borderTopColor: colors.recessedTopBorder,
+  },
+  groupPillName: {
+    ...typography.body2,
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  groupPillNameSelected: {
+    color: colors.primary,
+  },
+  groupPillMembers: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  emptyHintText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginVertical: spacing.xs,
+  },
+  fieldErrorText: {
+    ...typography.caption,
+    color: colors.danger,
+    marginTop: 4,
+  },
+  participantsSection: {
     marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  participantHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing.xs,
+  },
+  selectAllText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 11,
+  },
+  membersGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs + 2,
+    marginTop: spacing.xs,
+  },
+  memberChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  memberChipIncluded: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.primary,
+  },
+  memberChipExcluded: {
+    backgroundColor: colors.recessedBg,
+    borderColor: colors.surfaceBorder,
+    opacity: 0.6,
+  },
+  memberName: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.textSecondary,
+    maxWidth: 90,
+  },
+  memberNameIncluded: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  splitPreviewPlaque: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.recessedBg,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.recessedTopBorder,
+    padding: spacing.md,
+    marginTop: spacing.md,
+    gap: spacing.md,
+    position: "relative",
+    overflow: "hidden",
+  },
+  splitPreviewTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.recessedTopBorder,
+    opacity: 0.6,
+  },
+  splitPreviewIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  splitPreviewText: {
+    flex: 1,
+  },
+  splitPreviewLabel: {
+    ...typography.caption,
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.primary,
+    letterSpacing: 0.6,
+  },
+  splitPreviewAmount: {
+    ...typography.amount,
+    fontSize: 20,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  splitPerPerson: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textSecondary,
+  },
+  splitSubtext: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  deadlinesSection: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  deadlinesRow: {
+    flexDirection: "row",
+    gap: spacing.xs + 2,
+  },
+  deadlinePill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  deadlinePillSelected: {
+    backgroundColor: colors.recessedBg,
+    borderColor: colors.primary,
+  },
+  deadlinePillText: {
+    ...typography.caption,
+    fontSize: 11,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  deadlinePillTextSelected: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  receiptPreviewBox: {
+    width: "100%",
+    height: 160,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    overflow: "hidden",
+    position: "relative",
+  },
+  receiptImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  receiptRemoveBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+  },
+  submitSection: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xxl,
+  },
+  successBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  successCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    padding: spacing.xl,
+    alignItems: "center",
+    position: "relative",
+    overflow: "hidden",
+    ...shadows.floating,
+  },
+  successIcon: {
+    marginBottom: spacing.md,
+  },
+  successTitle: {
+    ...typography.h2,
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.textPrimary,
+  },
+  successAmount: {
+    ...typography.amount,
+    fontSize: 30,
+    fontWeight: "800",
+    color: colors.primary,
+    marginVertical: 4,
+  },
+  successDetailsCard: {
+    width: "100%",
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    padding: spacing.md,
+    marginVertical: spacing.md,
+    gap: 6,
+  },
+  successDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  successDetailLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  successDetailValue: {
+    ...typography.caption,
+    color: colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 12,
+    maxWidth: 180,
+    textAlign: "right",
+  },
+  successActions: {
+    width: "100%",
+    gap: spacing.sm,
+  },
+  successBtn: {
+    width: "100%",
   },
 });

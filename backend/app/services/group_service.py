@@ -3,12 +3,13 @@
 import secrets
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, noload, selectinload
 
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
-from app.models.enums import GroupRole
+from app.core.exceptions import BadRequestError, ConflictError, ForbiddenError, NotFoundError
+from app.models.enums import GroupRole, PaymentStatus
+from app.models.expense import Expense, ExpenseSplit
 from app.models.group import Group, GroupMember
 from app.models.user import User
 from app.schemas.group import GroupCreate
@@ -157,3 +158,63 @@ class GroupService:
         if member is None:
             raise ForbiddenError("You are not a member of this group")
         return member
+
+    async def remove_member(
+        self,
+        group_id: uuid.UUID,
+        member_user_id: uuid.UUID,
+        actor: User,
+    ) -> None:
+        """Remove a group member after checking management rights and unpaid splits."""
+        group = await self.get_group_by_id(group_id)
+        await self.verify_membership(group_id, actor.id)
+        is_manager = actor.id in {group.created_by, group.leader_id}
+        if actor.id != member_user_id and not is_manager:
+            raise ForbiddenError("Only the group owner or leader can remove another member")
+
+        result = await self.db.execute(
+            select(GroupMember).where(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id == member_user_id,
+            )
+        )
+        membership = result.scalar_one_or_none()
+        if membership is None:
+            raise NotFoundError("Group member not found")
+        if member_user_id == group.created_by:
+            raise BadRequestError("The group creator cannot be removed. Delete the group instead.")
+
+        unsettled = await self.db.execute(
+            select(ExpenseSplit.id)
+            .join(Expense, Expense.id == ExpenseSplit.expense_id)
+            .where(
+                Expense.group_id == group_id,
+                ExpenseSplit.user_id == member_user_id,
+                ExpenseSplit.status.in_(
+                    [
+                        PaymentStatus.PENDING.value,
+                        PaymentStatus.PAYMENT_SUBMITTED.value,
+                        PaymentStatus.REJECTED.value,
+                    ]
+                ),
+            )
+            .limit(1)
+        )
+        if unsettled.scalar_one_or_none() is not None:
+            raise BadRequestError("This member has unsettled expense shares. Settle them before removal.")
+
+        if group.leader_id == member_user_id:
+            group.leader_id = None
+        await self.db.delete(membership)
+        await self.db.flush()
+
+    async def delete_group(self, group_id: uuid.UUID, actor: User) -> None:
+        """Delete a group and its expenses after verifying the actor is its owner or leader."""
+        group = await self.get_group_by_id(group_id)
+        await self.verify_membership(group_id, actor.id)
+        if actor.id not in {group.created_by, group.leader_id}:
+            raise ForbiddenError("Only the group owner or leader can delete this group")
+
+        # Database foreign-key cascades remove memberships, expenses, splits, proofs, and history.
+        await self.db.execute(delete(Group).where(Group.id == group_id))
+        await self.db.flush()

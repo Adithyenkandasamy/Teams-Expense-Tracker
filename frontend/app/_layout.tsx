@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   webWrapper: {
     flex: 1,
-    backgroundColor: "#EEF2F6",
+    backgroundColor: "#ECEAE3",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
@@ -180,13 +180,13 @@ const styles = StyleSheet.create({
     maxHeight: 900,
     backgroundColor: colors.background,
     overflow: "hidden",
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
-    shadowColor: "#0F172A",
+    shadowColor: "#202923",
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
   },
 });
 

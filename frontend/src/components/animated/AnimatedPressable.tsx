@@ -30,8 +30,9 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
     Animated.spring(scale, {
       toValue: scaleTo,
       useNativeDriver: Platform.OS !== "web",
-      speed: 50,
-      bounciness: 4,
+      speed: 42,
+      bounciness: 3,
+      isInteraction: false,
     }).start();
     onPressIn?.(e);
   };
@@ -41,8 +42,9 @@ export const AnimatedPressable: React.FC<AnimatedPressableProps> = ({
     Animated.spring(scale, {
       toValue: 1,
       useNativeDriver: Platform.OS !== "web",
-      speed: 40,
-      bounciness: 6,
+      speed: 38,
+      bounciness: 4,
+      isInteraction: false,
     }).start();
     onPressOut?.(e);
   };

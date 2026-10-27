@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,15 +16,18 @@ import { getGroups } from "../../src/api/groups";
 import { getMyExpenses } from "../../src/api/expenses";
 import { getMonthlySpending } from "../../src/api/analytics";
 import { useNotificationStore } from "../../src/store/notificationStore";
-import { colors, spacing, typography, shadows } from "../../src/theme/colors";
-import { formatINR } from "../../src/utils/formatters";
+import { colors, spacing, typography } from "../../src/theme/colors";
 import { Avatar } from "../../src/components/common/Avatar";
-import { ExpenseCard } from "../../src/components/expense/ExpenseCard";
-import { GroupCard } from "../../src/components/group/GroupCard";
-import { LoadingState } from "../../src/components/common/LoadingState";
-import { EmptyState } from "../../src/components/common/EmptyState";
 import { FadeInView, AnimatedPressable } from "../../src/components/animated";
-import { MonthlyBarChart } from "../../src/components/analytics/MonthlyBarChart";
+import {
+  SpendingSummaryCard,
+  BalanceCard,
+  GroupCard,
+  TransactionRow,
+  RaisedIconContainer,
+  EmptyState,
+  LoadingSkeleton,
+} from "../../src/components/skeuomorphic";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -88,6 +90,7 @@ export default function HomeScreen() {
     });
     return months;
   }, [allExpenses, user?.id]);
+
   const spendingMonths = spending?.months ?? fallbackSpendingMonths;
 
   // Derive dashboard statistics
@@ -128,7 +131,6 @@ export default function HomeScreen() {
       });
     });
 
-    // Sort recent expenses by created_at descending
     const sorted = [...allExpenses].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
@@ -141,6 +143,13 @@ export default function HomeScreen() {
       recentExpenses: sorted.slice(0, 5),
     };
   }, [allExpenses, user?.id]);
+
+  // Map of group IDs to names
+  const groupMap = useMemo(() => {
+    const map = new Map<string, string>();
+    groups.forEach((g) => map.set(g.id, g.name));
+    return map;
+  }, [groups]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -165,100 +174,92 @@ export default function HomeScreen() {
                 {user?.name || "Friend"}
               </Text>
             </View>
+
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.notificationButton} onPress={() => router.push("/(tabs)/notifications")} accessibilityLabel="Notifications">
-                <Ionicons name="notifications-outline" size={22} color={colors.textPrimary} />
-                {unreadCount > 0 && <View style={styles.notificationDot} />}
+              <TouchableOpacity
+                style={styles.notificationButton}
+                onPress={() => router.push("/(tabs)/notifications")}
+                accessibilityLabel="Notifications"
+                activeOpacity={0.8}
+              >
+                <RaisedIconContainer size={42} variant="raised">
+                  <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
+                  {unreadCount > 0 && <View style={styles.notificationDot} />}
+                </RaisedIconContainer>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push("/(tabs)/profile")} activeOpacity={0.8}>
-                <Avatar name={user?.name || "User"} imageUrl={user?.profile_image} size={44} />
+
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/profile")}
+                activeOpacity={0.8}
+              >
+                <Avatar name={user?.name || "User"} imageUrl={user?.profile_image} size={42} />
               </TouchableOpacity>
             </View>
           </View>
         </FadeInView>
 
-        <FadeInView delay={80} style={styles.spendingSection}>
-          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push("/(tabs)/stats")}>
-            <View style={styles.spendingHeader}>
-              <View>
-                <Text style={styles.spendingTitle}>Monthly spending</Text>
-                <Text style={styles.spendingSubtitle}>Personal and your group share</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={19} color={colors.textMuted} />
-            </View>
-            {spendingMonths.some((month) => Number(month.group_total) > 0 || Number(month.personal_total) > 0) ? <MonthlyBarChart months={spendingMonths} compact /> : (
-              <View style={styles.spendingEmpty}><Text style={styles.spendingEmptyText}>Add expenses to see your monthly trend.</Text></View>
-            )}
-          </TouchableOpacity>
+        {/* Skeuomorphic Monthly Spending Summary Card */}
+        <FadeInView delay={50} style={styles.spendingSection}>
+          <SpendingSummaryCard
+            months={spendingMonths}
+            onPressStats={() => router.push("/(tabs)/stats")}
+          />
         </FadeInView>
 
         {/* Balance Overview Cards */}
-        <FadeInView delay={60}>
+        <FadeInView delay={100}>
           <View style={styles.balanceContainer}>
-            <View style={[styles.balanceCard, styles.oweCard]}>
-              <View style={styles.balanceCardHeader}>
-                <Ionicons name="arrow-up-circle-outline" size={20} color={colors.danger} />
-                <Text style={styles.balanceLabel}>You Owe</Text>
-              </View>
-              <Text style={[styles.balanceValue, { color: colors.danger }]}>
-                {formatINR(totalYouOwe)}
-              </Text>
-              <Text style={styles.balanceSubtext}>
-                {pendingPaymentsCount} pending {pendingPaymentsCount === 1 ? "payment" : "payments"}
-              </Text>
-            </View>
-
-            <View style={[styles.balanceCard, styles.owedCard]}>
-              <View style={styles.balanceCardHeader}>
-                <Ionicons name="arrow-down-circle-outline" size={20} color={colors.status.paid} />
-                <Text style={styles.balanceLabel}>Owed to You</Text>
-              </View>
-              <Text style={[styles.balanceValue, { color: colors.status.paid }]}>
-                {formatINR(totalOthersOweYou)}
-              </Text>
-              <Text style={styles.balanceSubtext}>
-                {reviewPendingCount} for your review
-              </Text>
-            </View>
+            <BalanceCard
+              type="owe"
+              amount={totalYouOwe}
+              count={pendingPaymentsCount}
+              onPress={() => router.push("/(tabs)/expenses")}
+            />
+            <BalanceCard
+              type="owed"
+              amount={totalOthersOweYou}
+              count={reviewPendingCount}
+              onPress={() => router.push("/(tabs)/expenses")}
+            />
           </View>
         </FadeInView>
 
-        {/* Pending Actions Alert Banner */}
+        {/* Pending Actions Alert Banner if any */}
         {(pendingPaymentsCount > 0 || reviewPendingCount > 0) && (
-          <FadeInView delay={100}>
-            <View style={styles.actionBanner}>
-              <Ionicons name="notifications" size={22} color={colors.warning} />
+          <FadeInView delay={140}>
+            <TouchableOpacity
+              onPress={() => router.push("/(tabs)/expenses")}
+              activeOpacity={0.9}
+              style={styles.actionBanner}
+            >
+              <View style={styles.actionBannerTop} pointerEvents="none" />
+              <Ionicons name="alert-circle" size={22} color={colors.warning} />
               <View style={styles.actionBannerText}>
-                <Text style={styles.actionBannerTitle}>Pending Actions</Text>
+                <Text style={styles.actionBannerTitle}>Pending Settlements</Text>
                 <Text style={styles.actionBannerSub}>
                   {pendingPaymentsCount > 0 && reviewPendingCount > 0
                     ? `You have ${pendingPaymentsCount} bills to settle & ${reviewPendingCount} payments to review.`
                     : pendingPaymentsCount > 0
                     ? `You have ${pendingPaymentsCount} unpaid bills requiring your attention.`
-                    : `You have ${reviewPendingCount} submitted payments to approve/reject.`}
+                    : `You have ${reviewPendingCount} submitted payments to approve or reject.`}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => router.push("/(tabs)/expenses")}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
           </FadeInView>
         )}
 
         {/* Quick Action Buttons */}
-        <FadeInView delay={140}>
+        <FadeInView delay={180}>
           <View style={styles.quickActions}>
             <AnimatedPressable
               style={styles.actionButton}
               onPress={() => router.push("/groups/create")}
               scaleTo={0.94}
             >
-              <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryMuted }]}>
-                <Ionicons name="add" size={22} color={colors.primary} />
-              </View>
+              <RaisedIconContainer size={48} variant="raised">
+                <Ionicons name="add" size={24} color={colors.primary} />
+              </RaisedIconContainer>
               <Text style={styles.actionButtonText}>New Group</Text>
             </AnimatedPressable>
 
@@ -267,9 +268,9 @@ export default function HomeScreen() {
               onPress={() => router.push("/groups/join")}
               scaleTo={0.94}
             >
-              <View style={[styles.actionIconCircle, { backgroundColor: colors.primaryMuted }]}>
+              <RaisedIconContainer size={48} variant="raised">
                 <Ionicons name="enter-outline" size={22} color={colors.primary} />
-              </View>
+              </RaisedIconContainer>
               <Text style={styles.actionButtonText}>Join Code</Text>
             </AnimatedPressable>
 
@@ -278,16 +279,16 @@ export default function HomeScreen() {
               onPress={() => router.push("/expenses/create")}
               scaleTo={0.94}
             >
-              <View style={[styles.actionIconCircle, { backgroundColor: "rgba(245, 158, 11, 0.15)" }]}>
-                <Ionicons name="receipt-outline" size={22} color={colors.warning} />
-              </View>
+              <RaisedIconContainer size={48} variant="raised">
+                <Ionicons name="receipt-outline" size={22} color={colors.primary} />
+              </RaisedIconContainer>
               <Text style={styles.actionButtonText}>Add Expense</Text>
             </AnimatedPressable>
           </View>
         </FadeInView>
 
         {/* Your Groups Section */}
-        <FadeInView delay={200}>
+        <FadeInView delay={220}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Your Groups</Text>
             <TouchableOpacity onPress={() => router.push("/(tabs)/groups")}>
@@ -296,7 +297,7 @@ export default function HomeScreen() {
           </View>
 
           {loadingGroups ? (
-            <LoadingState message="Loading your groups..." />
+            <LoadingSkeleton count={2} />
           ) : groups.length === 0 ? (
             <EmptyState
               icon="people-outline"
@@ -319,27 +320,29 @@ export default function HomeScreen() {
         {/* Recent Expenses Section */}
         <FadeInView delay={260}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Expenses</Text>
+            <Text style={styles.sectionTitle}>Recent Group Expenses</Text>
             <TouchableOpacity onPress={() => router.push("/(tabs)/expenses")}>
               <Text style={styles.seeAllText}>View All</Text>
             </TouchableOpacity>
           </View>
 
           {loadingExpenses ? (
-            <LoadingState message="Loading recent expenses..." />
+            <LoadingSkeleton count={3} />
           ) : recentExpenses.length === 0 ? (
             <EmptyState
               icon="receipt-outline"
               title="No Recent Expenses"
-              description="Expenses added in your groups will appear here."
+              description="Expenses added across your groups will appear here."
               actionTitle="Add Expense"
               onAction={() => router.push("/expenses/create")}
             />
           ) : (
             recentExpenses.map((expense) => (
-              <ExpenseCard
+              <TransactionRow
                 key={expense.id}
                 expense={expense}
+                groupName={groupMap.get(expense.group_id)}
+                currentUserId={user?.id}
                 onPress={() => router.push(`/expenses/${expense.id}` as any)}
               />
             ))
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
   },
   userInfo: {
     flex: 1,
@@ -376,135 +379,125 @@ const styles = StyleSheet.create({
   greeting: {
     ...typography.caption,
     color: colors.textSecondary,
+    fontSize: 12,
   },
   userName: {
     ...typography.h2,
+    fontSize: 22,
+    fontWeight: "800",
     color: colors.textPrimary,
+    marginTop: 1,
   },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.md, flexShrink: 0 },
-  notificationButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 21, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceBorder },
-  notificationDot: { position: "absolute", top: 8, right: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.danger, borderWidth: 1, borderColor: colors.surface },
-  spendingHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
-  spendingTitle: { ...typography.h3, color: colors.textPrimary },
-  spendingSubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  spendingEmpty: { backgroundColor: colors.surface, borderRadius: 14, borderWidth: 1, borderColor: colors.surfaceBorder, padding: spacing.lg },
-  spendingEmptyText: { ...typography.caption, color: colors.textSecondary },
-  spendingSection: { marginBottom: spacing.lg },
-  balanceContainer: {
-    flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  balanceCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    ...shadows.card,
-  },
-  oweCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.danger,
-  },
-  owedCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.status.paid,
-  },
-  balanceCardHeader: {
+  headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
+    gap: spacing.sm,
   },
-  balanceLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+  notificationButton: {
+    position: "relative",
   },
-  balanceValue: {
-    ...typography.amount,
-    fontSize: 22,
-    marginVertical: 4,
+  notificationDot: {
+    position: "absolute",
+    top: 9,
+    right: 9,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.danger,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
   },
-  balanceSubtext: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontSize: 11,
+  spendingSection: {
+    marginBottom: spacing.md,
+  },
+  balanceContainer: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   actionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(245, 158, 11, 0.08)",
+    backgroundColor: colors.surface,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(245, 158, 11, 0.25)",
-    borderRadius: 12,
+    borderColor: colors.warning,
+    borderLeftWidth: 4,
     padding: spacing.md,
-    marginBottom: spacing.lg,
-    gap: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+    position: "relative",
+    overflow: "hidden",
+  },
+  actionBannerTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.cardTopHighlight,
   },
   actionBannerText: {
     flex: 1,
   },
   actionBannerTitle: {
-    ...typography.body2,
-    fontWeight: "600",
-    color: colors.warning,
+    ...typography.caption,
+    fontSize: 12,
+    fontWeight: "700",
+    color: colors.textPrimary,
   },
   actionBannerSub: {
     ...typography.caption,
+    fontSize: 11,
     color: colors.textSecondary,
     marginTop: 2,
+    lineHeight: 15,
   },
   quickActions: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.xxl,
-    gap: spacing.sm,
+    justifyContent: "space-around",
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    marginBottom: spacing.xl,
   },
   actionButton: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    ...shadows.card,
-  },
-  actionIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 6,
+    paddingHorizontal: spacing.sm,
+    flex: 1,
   },
   actionButtonText: {
     ...typography.caption,
+    fontSize: 11,
+    fontWeight: "700",
     color: colors.textPrimary,
-    fontWeight: "500",
+    marginTop: 6,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginTop: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     ...typography.h3,
+    fontSize: 16,
+    fontWeight: "700",
     color: colors.textPrimary,
+    letterSpacing: -0.2,
   },
   seeAllText: {
     ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "500",
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 12,
   },
 });

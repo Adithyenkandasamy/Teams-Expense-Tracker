@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload, selectinload
 
@@ -311,6 +311,32 @@ class ExpenseService:
 
         await self.db.flush()
         return await self.get_expense_by_id(expense.id)
+
+    async def delete_expense(self, expense_id: uuid.UUID, actor: User) -> None:
+        """Delete an expense created by the actor if no other member has paid."""
+        expense = await self.get_expense_by_id(expense_id)
+        if expense.created_by != actor.id:
+            raise ForbiddenError("Only the expense creator can delete this expense")
+        if expense.status == ExpenseStatus.CLOSED.value:
+            raise BadRequestError("A closed expense cannot be deleted")
+
+        has_recorded_payment = any(
+            split.user_id != expense.created_by
+            and split.status in (PaymentStatus.PAID.value, PaymentStatus.PAYMENT_SUBMITTED.value)
+            for split in expense.splits
+        )
+        if has_recorded_payment:
+            raise BadRequestError(
+                "This expense has a payment recorded or awaiting review. Resolve it before deletion."
+            )
+
+        # Use a SQL DELETE so PostgreSQL's ON DELETE CASCADE removes splits, proofs, and history.
+        await self.db.execute(
+            delete(Expense)
+            .where(Expense.id == expense_id)
+            .execution_options(synchronize_session=False)
+        )
+        await self.db.flush()
 
     async def update_receipt(
         self,

@@ -102,6 +102,16 @@ export interface SavingsTarget {
   saved_amount: string | number;
   created_at: string;
   updated_at: string;
+  funding_mode?: "MANUAL" | "WALLET";
+  target_date?: string | null;
+  status?: "ACTIVE" | "COMPLETED" | "ARCHIVED";
+}
+
+export interface SavingsTargetSummary {
+  total_saved: string | number;
+  active_targets: number;
+  completed_targets: number;
+  total_remaining: string | number;
 }
 
 export interface MonthlySpendingBucket {

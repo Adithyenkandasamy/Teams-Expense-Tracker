@@ -1,21 +1,21 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
-import { EmptyState } from "../../src/components/common/EmptyState";
 import { NotificationItem } from "../../src/types/models";
 import { useNotificationStore } from "../../src/store/notificationStore";
-import { FadeInView, AnimatedPressable } from "../../src/components/animated";
+import { AnimatedPressable } from "../../src/components/animated";
+import { RaisedIconContainer, EmptyState } from "../../src/components/skeuomorphic";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -26,23 +26,23 @@ export default function NotificationsScreen() {
   const getIconForType = (type: string) => {
     switch (type) {
       case "NEW_EXPENSE":
-        return { name: "receipt-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
+        return { name: "receipt-outline" as const, color: colors.primary };
       case "PAYMENT_REMINDER":
-        return { name: "time-outline" as const, color: colors.warning, bg: "rgba(245, 158, 11, 0.12)" };
+        return { name: "time-outline" as const, color: colors.warning };
       case "PAYMENT_SUBMITTED":
-        return { name: "arrow-up-circle-outline" as const, color: colors.textSecondary, bg: colors.surfaceElevated };
+        return { name: "arrow-up-circle-outline" as const, color: colors.info };
       case "PAYMENT_ACCEPTED":
-        return { name: "checkmark-circle-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
+        return { name: "checkmark-circle-outline" as const, color: colors.positive };
       case "PAYMENT_REJECTED":
-        return { name: "close-circle-outline" as const, color: colors.danger, bg: colors.dangerBg };
+        return { name: "close-circle-outline" as const, color: colors.negative };
       case "DEADLINE_EXTENDED":
-        return { name: "calendar-outline" as const, color: colors.textSecondary, bg: colors.surfaceElevated };
+        return { name: "calendar-outline" as const, color: colors.secondary };
       case "EXPENSE_READY_TO_CLOSE":
-        return { name: "flag-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
+        return { name: "flag-outline" as const, color: colors.primary };
       case "EXPENSE_CLOSED":
-        return { name: "lock-closed-outline" as const, color: colors.textMuted, bg: colors.surfaceBorder };
+        return { name: "lock-closed-outline" as const, color: colors.textMuted };
       default:
-        return { name: "notifications-outline" as const, color: colors.textPrimary, bg: colors.surfaceElevated };
+        return { name: "notifications-outline" as const, color: colors.primary };
     }
   };
 
@@ -70,9 +70,17 @@ export default function NotificationsScreen() {
       <Header
         title="Notifications"
         subtitle="Reminders & activity updates"
+        showBack
+        onBack={() => {
+          if (router.canGoBack()) {
+            router.back();
+          } else {
+            router.replace("/(tabs)/more" as any);
+          }
+        }}
         rightAction={
           notificationList.length > 0 ? (
-            <TouchableOpacity onPress={markAllRead} activeOpacity={0.7}>
+            <TouchableOpacity onPress={markAllRead} activeOpacity={0.7} style={styles.markReadBtn}>
               <Text style={styles.markReadText}>Mark all read</Text>
             </TouchableOpacity>
           ) : null
@@ -82,8 +90,8 @@ export default function NotificationsScreen() {
       {notificationList.length === 0 ? (
         <EmptyState
           icon="notifications-off-outline"
-          title="No Notifications"
-          description="You are all caught up! New expense reminders and payment updates will show here."
+          title="All Caught Up"
+          description="You have no unread reminders or payment notices right now."
         />
       ) : (
         <FlatList
@@ -94,15 +102,18 @@ export default function NotificationsScreen() {
             if (!item) return null;
             const iconConfig = getIconForType(item.type || "");
             const isRead = !!item.read;
+
             return (
               <AnimatedPressable
                 style={[styles.card, !isRead && styles.unreadCard]}
                 onPress={() => handleNotificationPress(item)}
                 scaleTo={0.98}
               >
-                <View style={[styles.iconCircle, { backgroundColor: iconConfig.bg }]}>
+                <View style={styles.cardTopBevel} pointerEvents="none" />
+
+                <RaisedIconContainer size={42} variant={isRead ? "recessed" : "raised"}>
                   <Ionicons name={iconConfig.name} size={20} color={iconConfig.color} />
-                </View>
+                </RaisedIconContainer>
 
                 <View style={styles.content}>
                   <View style={styles.titleRow}>
@@ -112,6 +123,16 @@ export default function NotificationsScreen() {
                     {!isRead && <View style={styles.unreadDot} />}
                   </View>
                   <Text style={styles.body}>{item.body || ""}</Text>
+                  {item.timestamp && (
+                    <Text style={styles.timeText}>
+                      {new Date(item.timestamp).toLocaleDateString("en-IN", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  )}
                 </View>
               </AnimatedPressable>
             );
@@ -127,10 +148,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  markReadBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   markReadText: {
     ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: "500",
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: 12,
   },
   listContainer: {
     padding: spacing.lg,
@@ -140,24 +166,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 1.5,
+    gap: spacing.md,
+    position: "relative",
+    overflow: "hidden",
     ...shadows.card,
   },
-  unreadCard: {
-    borderColor: colors.primary,
-    backgroundColor: colors.surface,
+  cardTopBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.cardTopHighlight,
   },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.md,
+  unreadCard: {
+    borderLeftWidth: 3.5,
+    borderLeftColor: colors.primary,
   },
   content: {
     flex: 1,
@@ -169,17 +201,19 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body2,
-    fontWeight: "500",
+    fontWeight: "600",
     color: colors.textSecondary,
+    fontSize: 13,
   },
   unreadTitle: {
     color: colors.textPrimary,
-    fontWeight: "600",
+    fontWeight: "700",
+    fontSize: 14,
   },
   unreadDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: colors.primary,
   },
   body: {
@@ -187,5 +221,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 3,
     lineHeight: 18,
+    fontSize: 12,
+  },
+  timeText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 6,
   },
 });

@@ -5,20 +5,23 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  TouchableOpacity,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { createGroup } from "../../src/api/groups";
 import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
-import { Input } from "../../src/components/common/Input";
-import { Button } from "../../src/components/common/Button";
 import { Group } from "../../src/types/models";
 import { FadeInView } from "../../src/components/animated";
+import {
+  RecessedInput,
+  PrimaryButton,
+  SecondaryButton,
+  RaisedIconContainer,
+} from "../../src/components/skeuomorphic";
 
 export default function CreateGroupScreen() {
   const router = useRouter();
@@ -57,6 +60,7 @@ export default function CreateGroupScreen() {
     <SafeAreaView style={styles.safeArea}>
       <Header
         title={createdGroup ? "Group Created!" : "Create Group"}
+        subtitle={createdGroup ? "Invite roommates & split expenses" : "New team or household ledger"}
         showBack
         onBack={() => {
           if (router.canGoBack()) {
@@ -67,7 +71,6 @@ export default function CreateGroupScreen() {
         }}
       />
 
-
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
@@ -76,56 +79,67 @@ export default function CreateGroupScreen() {
         <FadeInView delay={0}>
           {createdGroup ? (
             <View style={styles.successCard}>
-              <View style={styles.successIcon}>
-                <Ionicons name="checkmark-circle" size={54} color={colors.primary} />
-              </View>
+              <View style={styles.cardTopBevel} pointerEvents="none" />
+
+              <RaisedIconContainer size={64} variant="raised" style={styles.successIcon}>
+                <Ionicons name="checkmark-circle" size={36} color={colors.positive} />
+              </RaisedIconContainer>
+
               <Text style={styles.successTitle}>{createdGroup.name}</Text>
               <Text style={styles.successSubtitle}>
-                Your group is ready! Share the invite code below with your roommates or teammates so they can join.
+                Your shared ledger is ready. Share this invite code with your friends or roommates so they can join and split expenses.
               </Text>
 
               <View style={styles.codeContainer}>
-                <Text style={styles.codeLabel}>INVITE CODE</Text>
+                <View style={styles.codeInsetTop} pointerEvents="none" />
+                <Text style={styles.codeLabel}>GROUP INVITE CODE</Text>
                 <Text style={styles.codeText}>{createdGroup.invite_code}</Text>
               </View>
 
               <View style={styles.actionRow}>
-                <Button
-                  title="Go to Group"
+                <PrimaryButton
+                  title="Open Group Ledger"
                   onPress={() => router.replace(`/groups/${createdGroup.id}` as any)}
-                  variant="primary"
+                  size="large"
+                  icon={<Ionicons name="arrow-forward" size={18} color={colors.textInverse} />}
                 />
               </View>
             </View>
           ) : (
             <View style={styles.formCard}>
+              <View style={styles.cardTopBevel} pointerEvents="none" />
+
               <Text style={styles.sectionHeader}>Group Information</Text>
               <Text style={styles.sectionSub}>
-                Set up a group for your apartment, trip, or team expenses.
+                Set up a shared ledger for your apartment, trip, dinner club, or team.
               </Text>
 
-              <Input
+              <RecessedInput
                 label="Group Name *"
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g. Flat 302, Goa Trip, Office Lunch"
+                leadingIcon="people-outline"
               />
 
-              <Input
+              <RecessedInput
                 label="Description (Optional)"
                 value={description}
                 onChangeText={setDescription}
-                placeholder="e.g. Shared household bills and groceries"
+                placeholder="e.g. Shared rent, bills, and groceries"
+                leadingIcon="document-text-outline"
                 multiline
                 numberOfLines={3}
+                style={{ height: 72, textAlignVertical: "top", paddingTop: 8 }}
+                containerStyle={{ height: 72 }}
               />
 
               <View style={styles.buttonWrapper}>
-                <Button
-                  title="Create Group"
+                <PrimaryButton
+                  title={mutation.isPending ? "Creating Group..." : "Create Group"}
                   onPress={handleSubmit}
                   loading={mutation.isPending}
-                  variant="primary"
+                  size="large"
                   icon={<Ionicons name="add-circle-outline" size={18} color={colors.textInverse} />}
                 />
               </View>
@@ -147,17 +161,33 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  cardTopBevel: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: colors.cardTopHighlight,
   },
   formCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: spacing.xl,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    position: "relative",
+    overflow: "hidden",
     ...shadows.card,
   },
   sectionHeader: {
-    ...typography.h3,
+    ...typography.h2,
+    fontSize: 18,
+    fontWeight: "800",
     color: colors.textPrimary,
   },
   sectionSub: {
@@ -171,23 +201,25 @@ const styles = StyleSheet.create({
   },
   successCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: spacing.xl,
     alignItems: "center",
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    borderTopColor: colors.cardTopHighlight,
+    borderBottomColor: colors.cardBottomBorder,
+    borderBottomWidth: 2,
+    position: "relative",
+    overflow: "hidden",
+    ...shadows.card,
   },
   successIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primaryMuted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   successTitle: {
     ...typography.h2,
+    fontSize: 22,
+    fontWeight: "800",
     color: colors.textPrimary,
     textAlign: "center",
   },
@@ -198,29 +230,51 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     marginBottom: spacing.xl,
     lineHeight: 20,
+    maxWidth: 300,
   },
   codeContainer: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.recessedBg,
     borderRadius: 14,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xxl,
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.primary,
+    borderTopColor: colors.recessedTopBorder,
+    borderBottomColor: colors.recessedBottomHighlight,
     marginBottom: spacing.xl,
     width: "100%",
+    position: "relative",
+    overflow: "hidden",
+    ...(Platform.OS === "web"
+      ? {
+          boxShadow: "inset 0 2px 4px rgba(35, 122, 87, 0.12)",
+        }
+      : {}),
+  },
+  codeInsetTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: colors.recessedTopBorder,
+    opacity: 0.6,
   },
   codeLabel: {
     ...typography.caption,
-    color: colors.textMuted,
-    letterSpacing: 1.5,
+    color: colors.textSecondary,
+    letterSpacing: 1.2,
+    fontWeight: "700",
+    fontSize: 10,
     marginBottom: 4,
   },
   codeText: {
-    ...typography.h1,
+    ...typography.amount,
+    fontSize: 28,
     color: colors.primary,
     letterSpacing: 4,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   actionRow: {
     width: "100%",
