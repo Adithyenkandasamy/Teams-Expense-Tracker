@@ -118,7 +118,7 @@ export default function CreateGroupScreen() {
                 label="Group Name *"
                 value={name}
                 onChangeText={setName}
-                placeholder="e.g. Flat 302, Goa Trip, Office Lunch"
+                placeholder="e.g. Goa Trip, Dinner Club"
                 leadingIcon="people-outline"
               />
 
