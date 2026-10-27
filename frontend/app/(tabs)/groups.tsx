@@ -13,12 +13,13 @@ import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { getGroups } from "../../src/api/groups";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { GroupCard } from "../../src/components/group/GroupCard";
 import { Header } from "../../src/components/common/Header";
 import { LoadingState } from "../../src/components/common/LoadingState";
 import { EmptyState } from "../../src/components/common/EmptyState";
 import { Button } from "../../src/components/common/Button";
+import { FadeInView, AnimatedPressable } from "../../src/components/animated";
 
 export default function GroupsScreen() {
   const router = useRouter();
@@ -39,43 +40,45 @@ export default function GroupsScreen() {
         subtitle="Manage roommates & teams"
         rightAction={
           <View style={styles.headerActions}>
-            <TouchableOpacity
+            <AnimatedPressable
               style={styles.iconBtn}
               onPress={() => router.push("/groups/join")}
-              activeOpacity={0.7}
+              scaleTo={0.92}
             >
               <Ionicons name="enter-outline" size={18} color={colors.textPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity
+            </AnimatedPressable>
+            <AnimatedPressable
               style={styles.iconBtn}
               onPress={() => router.push("/groups/create")}
-              activeOpacity={0.7}
+              scaleTo={0.92}
             >
               <Ionicons name="add" size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
         }
       />
 
-      <View style={styles.buttonBanner}>
-        <View style={styles.buttonCol}>
-          <Button
-            title="Create Group"
-            icon={<Ionicons name="add" size={18} color={colors.textInverse} />}
-            onPress={() => router.push("/groups/create")}
-            size="small"
-          />
+      <FadeInView delay={0}>
+        <View style={styles.buttonBanner}>
+          <View style={styles.buttonCol}>
+            <Button
+              title="Create Group"
+              icon={<Ionicons name="add" size={18} color={colors.textInverse} />}
+              onPress={() => router.push("/groups/create")}
+              size="small"
+            />
+          </View>
+          <View style={styles.buttonCol}>
+            <Button
+              title="Join with Code"
+              icon={<Ionicons name="key-outline" size={16} color={colors.textPrimary} />}
+              variant="outline"
+              onPress={() => router.push("/groups/join")}
+              size="small"
+            />
+          </View>
         </View>
-        <View style={styles.buttonCol}>
-          <Button
-            title="Join with Code"
-            icon={<Ionicons name="key-outline" size={16} color={colors.textPrimary} />}
-            variant="outline"
-            onPress={() => router.push("/groups/join")}
-            size="small"
-          />
-        </View>
-      </View>
+      </FadeInView>
 
       {isLoading ? (
         <LoadingState message="Loading your groups..." fullScreen />
@@ -123,12 +126,13 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 32,
     height: 32,
-    borderRadius: 6,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.sm,
   },
   buttonBanner: {
     flexDirection: "row",

@@ -14,11 +14,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { getMyExpenses } from "../../src/api/expenses";
 import { useAuthStore } from "../../src/store/authStore";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { ExpenseCard } from "../../src/components/expense/ExpenseCard";
 import { LoadingState } from "../../src/components/common/LoadingState";
 import { EmptyState } from "../../src/components/common/EmptyState";
+import { FadeInView, AnimatedPressable } from "../../src/components/animated";
 
 type FilterType = "ALL" | "YOU_OWE" | "LEADER";
 
@@ -63,63 +64,65 @@ export default function ExpensesScreen() {
         title="Expenses"
         subtitle="Shared bills & settlements"
         rightAction={
-          <TouchableOpacity
+          <AnimatedPressable
             style={styles.addBtn}
             onPress={() => router.push("/expenses/create")}
-            activeOpacity={0.7}
+            scaleTo={0.92}
           >
-            <Ionicons name="add" size={22} color={colors.textInverse} />
-          </TouchableOpacity>
+            <Ionicons name="add" size={20} color={colors.textInverse} />
+          </AnimatedPressable>
         }
       />
 
       {/* Filter Tabs */}
-      <View style={styles.tabBar}>
-        <TouchableOpacity
-          style={[styles.tabItem, activeFilter === "ALL" && styles.tabItemActive]}
-          onPress={() => setActiveFilter("ALL")}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeFilter === "ALL" && styles.tabTextActive,
-            ]}
+      <FadeInView delay={0}>
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tabItem, activeFilter === "ALL" && styles.tabItemActive]}
+            onPress={() => setActiveFilter("ALL")}
+            activeOpacity={0.8}
           >
-            All ({expenses.length})
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.tabText,
+                activeFilter === "ALL" && styles.tabTextActive,
+              ]}
+            >
+              All ({expenses.length})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabItem, activeFilter === "YOU_OWE" && styles.tabItemActive]}
-          onPress={() => setActiveFilter("YOU_OWE")}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeFilter === "YOU_OWE" && styles.tabTextActive,
-            ]}
+          <TouchableOpacity
+            style={[styles.tabItem, activeFilter === "YOU_OWE" && styles.tabItemActive]}
+            onPress={() => setActiveFilter("YOU_OWE")}
+            activeOpacity={0.8}
           >
-            You Owe
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.tabText,
+                activeFilter === "YOU_OWE" && styles.tabTextActive,
+              ]}
+            >
+              You Owe
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tabItem, activeFilter === "LEADER" && styles.tabItemActive]}
-          onPress={() => setActiveFilter("LEADER")}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeFilter === "LEADER" && styles.tabTextActive,
-            ]}
+          <TouchableOpacity
+            style={[styles.tabItem, activeFilter === "LEADER" && styles.tabItemActive]}
+            onPress={() => setActiveFilter("LEADER")}
+            activeOpacity={0.8}
           >
-            You Created
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={[
+                styles.tabText,
+                activeFilter === "LEADER" && styles.tabTextActive,
+              ]}
+            >
+              You Created
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </FadeInView>
 
       {isLoading ? (
         <LoadingState message="Loading expenses..." fullScreen />
@@ -175,14 +178,15 @@ const styles = StyleSheet.create({
   addBtn: {
     width: 32,
     height: 32,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.sm,
   },
   tabBar: {
     flexDirection: "row",
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     padding: 3,
     marginHorizontal: spacing.lg,
     marginVertical: spacing.md,
@@ -197,9 +201,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   tabItemActive: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    ...shadows.sm,
   },
   tabText: {
     ...typography.caption,

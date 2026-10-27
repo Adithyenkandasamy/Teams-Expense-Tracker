@@ -6,6 +6,7 @@ from app.models.enums import ExpenseStatus, GroupRole, PaymentStatus
 from app.models.expense import DeadlineHistory, Expense, ExpenseSplit, PaymentProof
 from app.models.group import Group, GroupMember
 from app.models.personal_expense import PersonalExpense
+from app.models.savings_target import SavingsTarget
 from app.models.user import User
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "Group",
     "GroupMember",
     "PersonalExpense",
+    "SavingsTarget",
     "Expense",
     "ExpenseSplit",
     "PaymentProof",

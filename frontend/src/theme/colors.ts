@@ -1,59 +1,93 @@
 /**
- * Clean, premium Shadcn-inspired monochrome dark theme palette.
- * Pure deep zinc/black backgrounds, crisp 1px borders, and high-contrast white accents.
+ * Clean, modern light theme palette with high-precision typography and crisp contrast.
+ * Slate & Zinc neutrals with vibrant, clear semantic accents.
  */
 
-export const colors = {
-  // Brand / Primary (High-contrast monochrome: pure crisp white on dark)
-  primary: "#FAFAFA",
-  primaryDark: "#E4E4E7",
-  primaryLight: "#FFFFFF",
-  primaryMuted: "rgba(255, 255, 255, 0.08)",
+const lightColors = {
+  // Brand / Primary (High-contrast slate black on light)
+  primary: "#0F172A",          // Slate 900
+  primaryDark: "#020617",      // Slate 950
+  primaryLight: "#1E293B",     // Slate 800
+  primaryMuted: "rgba(15, 23, 42, 0.06)",
 
   // Secondary
-  secondary: "#27272A",
-  secondaryMuted: "rgba(255, 255, 255, 0.04)",
+  secondary: "#F1F5F9",        // Slate 100
+  secondaryMuted: "rgba(15, 23, 42, 0.04)",
 
-  // Backgrounds & Surfaces (Shadcn Dark Neutral / Zinc)
-  background: "#09090B",       // Pure deep neutral black
-  surface: "#121215",          // Card surface
-  surfaceElevated: "#18181B",  // Elevated surfaces / modals / inputs
-  surfaceBorder: "#27272A",    // Sharp 1px zinc border
-  borderLight: "#3F3F46",      // Subtle hover / highlight border
+  // Backgrounds & Surfaces (Light Palette)
+  background: "#F8FAFC",       // Clean soft off-white Slate-50
+  surface: "#FFFFFF",          // Crisp white card surface
+  surfaceElevated: "#F1F5F9",  // Subtle elevated surface / pills / input background
+  surfaceBorder: "#E2E8F0",    // Crisp 1px slate-200 border
+  borderLight: "#F1F5F9",      // Very subtle divider
 
   // Text
-  textPrimary: "#FAFAFA",      // Clean bright white
-  textSecondary: "#A1A1AA",    // Neutral zinc-400
-  textMuted: "#71717A",        // Zinc-500
-  textInverse: "#09090B",      // Pure black for high-contrast white buttons
+  textPrimary: "#0F172A",      // Crisp high-contrast Slate-900
+  textSecondary: "#475569",    // Highly readable Slate-600
+  textMuted: "#94A3B8",        // Neutral Slate-400
+  textInverse: "#FFFFFF",      // Pure white for primary buttons & dark chips
 
-  // Status colors (Clean, modern accents)
+  // Status colors (Clean, modern semantic accents)
   status: {
-    paid: "#FAFAFA",
-    paidBg: "rgba(255, 255, 255, 0.08)",
-    pending: "#F59E0B",
-    pendingBg: "rgba(245, 158, 11, 0.12)",
-    submitted: "#A1A1AA",
-    submittedBg: "rgba(161, 161, 170, 0.12)",
-    rejected: "#EF4444",
-    rejectedBg: "rgba(239, 68, 68, 0.12)",
-    active: "#FAFAFA",
-    readyToClose: "#E4E4E7",
-    readyToCloseBg: "rgba(228, 228, 231, 0.12)",
-    closed: "#71717A",
-    closedBg: "rgba(113, 113, 122, 0.12)",
+    paid: "#059669",
+    paidBg: "#ECFDF5",
+    pending: "#D97706",
+    pendingBg: "#FFFBEB",
+    submitted: "#2563EB",
+    submittedBg: "#EFF6FF",
+    rejected: "#DC2626",
+    rejectedBg: "#FEF2F2",
+    active: "#0F172A",
+    readyToClose: "#059669",
+    readyToCloseBg: "#ECFDF5",
+    closed: "#64748B",
+    closedBg: "#F1F5F9",
   },
 
   // Action states
-  danger: "#EF4444",
-  dangerBg: "rgba(239, 68, 68, 0.12)",
-  success: "#FAFAFA",
-  warning: "#F59E0B",
-  info: "#A1A1AA",
+  danger: "#DC2626",
+  dangerBg: "#FEF2F2",
+  success: "#059669",
+  warning: "#D97706",
+  info: "#2563EB",
 
   // Shadows
-  shadow: "#000000",
+  shadow: "rgba(15, 23, 42, 0.08)",
 } as const;
+
+const darkColors = {
+  ...lightColors,
+  primary: "#E2E8F0",
+  primaryDark: "#CBD5E1",
+  primaryLight: "#F1F5F9",
+  primaryMuted: "rgba(226, 232, 240, 0.10)",
+  secondary: "#1E293B",
+  secondaryMuted: "rgba(226, 232, 240, 0.06)",
+  background: "#0B1220",
+  surface: "#111B2B",
+  surfaceElevated: "#1B293B",
+  surfaceBorder: "#26364A",
+  borderLight: "#1B293B",
+  textPrimary: "#F1F5F9",
+  textSecondary: "#B7C4D3",
+  textMuted: "#8292A6",
+  textInverse: "#0B1220",
+  status: {
+    ...lightColors.status,
+    paidBg: "#12372F",
+    pendingBg: "#3A2B14",
+    submittedBg: "#172E50",
+    rejectedBg: "#3B2025",
+    active: "#E2E8F0",
+    readyToCloseBg: "#12372F",
+    closedBg: "#1B293B",
+  },
+  dangerBg: "#3B2025",
+  shadow: "rgba(0, 0, 0, 0.22)",
+} as const;
+
+// Screen styles read this palette when their modules load, matching the system theme at launch.
+export const colors = Appearance.getColorScheme() === "dark" ? darkColors : lightColors;
 
 export const spacing = {
   xs: 4,
@@ -65,6 +99,30 @@ export const spacing = {
   xxxl: 32,
 } as const;
 
+export const shadows = {
+  card: {
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  sm: {
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+} as const;
+
 export const typography = {
   h1: { fontSize: 26, fontWeight: "700" as const, color: colors.textPrimary, letterSpacing: -0.5 },
   h2: { fontSize: 20, fontWeight: "600" as const, color: colors.textPrimary, letterSpacing: -0.3 },
@@ -74,3 +132,5 @@ export const typography = {
   caption: { fontSize: 12, fontWeight: "500" as const, color: colors.textMuted },
   amount: { fontSize: 24, fontWeight: "700" as const, color: colors.textPrimary, letterSpacing: -0.5 },
 } as const;
+import { Appearance } from "react-native";
+

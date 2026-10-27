@@ -10,47 +10,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { EmptyState } from "../../src/components/common/EmptyState";
 import { NotificationItem } from "../../src/types/models";
 import { useNotificationStore } from "../../src/store/notificationStore";
-
-// Initial notification history items matching backend event types
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "1",
-    title: "Payment Reminder",
-    body: "Reminder: ₹400 for Grocery Run is pending. Tap to settle.",
-    type: "PAYMENT_REMINDER",
-    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    read: false,
-  },
-  {
-    id: "2",
-    title: "Payment Accepted",
-    body: "Your payment of ₹350 for Pizza Night was accepted by Arun.",
-    type: "PAYMENT_ACCEPTED",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    read: false,
-  },
-  {
-    id: "3",
-    title: "New Expense Added",
-    body: "Rahul added 'Internet & WiFi' in Apartment 4B. Your share is ₹250.",
-    type: "NEW_EXPENSE",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    read: true,
-  },
-  {
-    id: "4",
-    title: "Deadline Extended",
-    body: "Payment deadline for 'Water Filter Replacement' was auto-extended.",
-    type: "DEADLINE_EXTENDED",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    read: true,
-  },
-];
+import { FadeInView, AnimatedPressable } from "../../src/components/animated";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -84,10 +49,17 @@ export default function NotificationsScreen() {
   const handleNotificationPress = (item: NotificationItem) => {
     markAsRead(item.id);
 
-    if (item.data?.expense_id) {
-      router.push(`/expenses/${item.data.expense_id}` as any);
-    } else if (item.data?.group_id) {
-      router.push(`/groups/${item.data.group_id}` as any);
+    if (item.route) {
+      router.push(item.route as any);
+      return;
+    }
+
+    const expenseId = item.data?.expense_id || item.data?.expenseId;
+    const groupId = item.data?.group_id || item.data?.groupId;
+    if (expenseId) {
+      router.push(`/expenses/${expenseId}` as any);
+    } else if (groupId) {
+      router.push(`/groups/${groupId}` as any);
     }
   };
 
@@ -123,13 +95,13 @@ export default function NotificationsScreen() {
             const iconConfig = getIconForType(item.type || "");
             const isRead = !!item.read;
             return (
-              <TouchableOpacity
+              <AnimatedPressable
                 style={[styles.card, !isRead && styles.unreadCard]}
                 onPress={() => handleNotificationPress(item)}
-                activeOpacity={0.8}
+                scaleTo={0.98}
               >
                 <View style={[styles.iconCircle, { backgroundColor: iconConfig.bg }]}>
-                  <Ionicons name={iconConfig.name} size={22} color={iconConfig.color} />
+                  <Ionicons name={iconConfig.name} size={20} color={iconConfig.color} />
                 </View>
 
                 <View style={styles.content}>
@@ -141,7 +113,7 @@ export default function NotificationsScreen() {
                   </View>
                   <Text style={styles.body}>{item.body || ""}</Text>
                 </View>
-              </TouchableOpacity>
+              </AnimatedPressable>
             );
           }}
         />
@@ -168,20 +140,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    ...shadows.card,
   },
   unreadCard: {
-    borderColor: colors.borderLight,
-    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.primary,
+    backgroundColor: colors.surface,
   },
   iconCircle: {
     width: 38,
     height: 38,
-    borderRadius: 6,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.md,
@@ -207,7 +180,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.primary,
   },
   body: {
     ...typography.body2,

@@ -13,11 +13,12 @@ import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { createGroup } from "../../src/api/groups";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { Input } from "../../src/components/common/Input";
 import { Button } from "../../src/components/common/Button";
 import { Group } from "../../src/types/models";
+import { FadeInView } from "../../src/components/animated";
 
 export default function CreateGroupScreen() {
   const router = useRouter();
@@ -72,63 +73,65 @@ export default function CreateGroupScreen() {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        {createdGroup ? (
-          <View style={styles.successCard}>
-            <View style={styles.successIcon}>
-              <Ionicons name="checkmark-circle" size={54} color={colors.primary} />
-            </View>
-            <Text style={styles.successTitle}>{createdGroup.name}</Text>
-            <Text style={styles.successSubtitle}>
-              Your group is ready! Share the invite code below with your roommates or teammates so they can join.
-            </Text>
+        <FadeInView delay={0}>
+          {createdGroup ? (
+            <View style={styles.successCard}>
+              <View style={styles.successIcon}>
+                <Ionicons name="checkmark-circle" size={54} color={colors.primary} />
+              </View>
+              <Text style={styles.successTitle}>{createdGroup.name}</Text>
+              <Text style={styles.successSubtitle}>
+                Your group is ready! Share the invite code below with your roommates or teammates so they can join.
+              </Text>
 
-            <View style={styles.codeContainer}>
-              <Text style={styles.codeLabel}>INVITE CODE</Text>
-              <Text style={styles.codeText}>{createdGroup.invite_code}</Text>
-            </View>
+              <View style={styles.codeContainer}>
+                <Text style={styles.codeLabel}>INVITE CODE</Text>
+                <Text style={styles.codeText}>{createdGroup.invite_code}</Text>
+              </View>
 
-            <View style={styles.actionRow}>
-              <Button
-                title="Go to Group"
-                onPress={() => router.replace(`/groups/${createdGroup.id}` as any)}
-                variant="primary"
+              <View style={styles.actionRow}>
+                <Button
+                  title="Go to Group"
+                  onPress={() => router.replace(`/groups/${createdGroup.id}` as any)}
+                  variant="primary"
+                />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.formCard}>
+              <Text style={styles.sectionHeader}>Group Information</Text>
+              <Text style={styles.sectionSub}>
+                Set up a group for your apartment, trip, or team expenses.
+              </Text>
+
+              <Input
+                label="Group Name *"
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g. Flat 302, Goa Trip, Office Lunch"
               />
-            </View>
-          </View>
-        ) : (
-          <View style={styles.formCard}>
-            <Text style={styles.sectionHeader}>Group Information</Text>
-            <Text style={styles.sectionSub}>
-              Set up a group for your apartment, trip, or team expenses.
-            </Text>
 
-            <Input
-              label="Group Name *"
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Flat 302, Goa Trip, Office Lunch"
-            />
-
-            <Input
-              label="Description (Optional)"
-              value={description}
-              onChangeText={setDescription}
-              placeholder="e.g. Shared household bills and groceries"
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={styles.buttonWrapper}>
-              <Button
-                title="Create Group"
-                onPress={handleSubmit}
-                loading={mutation.isPending}
-                variant="primary"
-                icon={<Ionicons name="add-circle-outline" size={18} color={colors.textInverse} />}
+              <Input
+                label="Description (Optional)"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="e.g. Shared household bills and groceries"
+                multiline
+                numberOfLines={3}
               />
+
+              <View style={styles.buttonWrapper}>
+                <Button
+                  title="Create Group"
+                  onPress={handleSubmit}
+                  loading={mutation.isPending}
+                  variant="primary"
+                  icon={<Ionicons name="add-circle-outline" size={18} color={colors.textInverse} />}
+                />
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </FadeInView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    ...shadows.card,
   },
   sectionHeader: {
     ...typography.h3,

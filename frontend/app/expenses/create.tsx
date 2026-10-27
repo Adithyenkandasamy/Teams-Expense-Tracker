@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -17,13 +18,15 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { getGroups, getGroupMembers } from "../../src/api/groups";
 import { createExpense, uploadReceipt } from "../../src/api/expenses";
+import { createPersonalExpense } from "../../src/api/personalExpenses";
 import { useAuthStore } from "../../src/store/authStore";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { formatINR } from "../../src/utils/formatters";
 import { Header } from "../../src/components/common/Header";
 import { Input } from "../../src/components/common/Input";
 import { Button } from "../../src/components/common/Button";
 import { Avatar } from "../../src/components/common/Avatar";
+import { FadeInView } from "../../src/components/animated";
 
 const CATEGORIES = ["Food & Drinks", "Groceries", "Rent", "Utilities", "Travel", "Entertainment", "Other"];
 
@@ -42,6 +45,8 @@ export default function CreateExpenseScreen() {
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
     initialGroupId || (groups[0]?.id || "")
   );
+  const [expenseScope, setExpenseScope] = useState<"PERSONAL" | "GROUP">(initialGroupId ? "GROUP" : "PERSONAL");
+  const [groupSearch, setGroupSearch] = useState("");
 
   // Group members for the chosen group
   const { data: members = [] } = useQuery({
@@ -132,6 +137,13 @@ export default function CreateExpenseScreen() {
   // Create expense mutation
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (expenseScope === "PERSONAL") {
+        return createPersonalExpense({
+          amount: parseFloat(amount).toFixed(2),
+          description: description.trim(),
+          category,
+        });
+      }
       const deadlineDate = new Date();
       deadlineDate.setDate(deadlineDate.getDate() + deadlineDays);
 
@@ -158,8 +170,21 @@ export default function CreateExpenseScreen() {
       return created;
     },
     onSuccess: (created) => {
+      if (expenseScope === "PERSONAL") {
+        queryClient.invalidateQueries({ queryKey: ["personalExpenses"] });
+        queryClient.invalidateQueries({ queryKey: ["monthlySpending"] });
+        if (Platform.OS === "web") {
+          router.replace("/(tabs)/personal");
+        } else {
+          Alert.alert("Saved", "Personal expense added.", [
+            { text: "View personal expenses", onPress: () => router.replace("/(tabs)/personal") },
+          ]);
+        }
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["groupExpenses", selectedGroupId] });
       queryClient.invalidateQueries({ queryKey: ["allExpenses"] });
+      queryClient.invalidateQueries({ queryKey: ["monthlySpending"] });
       queryClient.invalidateQueries({ queryKey: ["groupBalances", selectedGroupId] });
       queryClient.invalidateQueries({ queryKey: ["expenseDetail", created.id] });
 
@@ -183,7 +208,7 @@ export default function CreateExpenseScreen() {
   });
 
   const handleSubmit = () => {
-    if (!selectedGroupId) {
+    if (expenseScope === "GROUP" && !selectedGroupId) {
       Alert.alert("Validation", "Please select a group.");
       return;
     }
@@ -196,7 +221,7 @@ export default function CreateExpenseScreen() {
       Alert.alert("Validation", "Please enter a description for the expense.");
       return;
     }
-    if (selectedMemberIds.length === 0) {
+    if (expenseScope === "GROUP" && selectedMemberIds.length === 0) {
       Alert.alert("Validation", "Please select at least one member to split with.");
       return;
     }
@@ -223,7 +248,21 @@ export default function CreateExpenseScreen() {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Creator Notice (Business rule: creator == payer == Expense Leader) */}
+        <FadeInView delay={0}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>WHAT IS THIS FOR?</Text>
+          <View style={styles.scopePicker}>
+            {(["PERSONAL", "GROUP"] as const).map((scope) => (
+              <TouchableOpacity key={scope} onPress={() => setExpenseScope(scope)} style={[styles.scopeOption, expenseScope === scope && styles.scopeOptionActive]}>
+                <Ionicons name={scope === "PERSONAL" ? "person-outline" : "people-outline"} size={17} color={expenseScope === scope ? colors.textInverse : colors.textSecondary} />
+                <Text style={[styles.scopeOptionText, expenseScope === scope && styles.scopeOptionTextActive]}>{scope === "PERSONAL" ? "My expense" : "Group expense"}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {expenseScope === "GROUP" && <>
+          {/* Creator Notice (Business rule: creator == payer == Expense Leader) */}
         <View style={styles.leaderNotice}>
           <Ionicons name="information-circle-outline" size={18} color={colors.textPrimary} />
           <Text style={styles.leaderNoticeText}>
@@ -239,8 +278,9 @@ export default function CreateExpenseScreen() {
         {groups.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Group</Text>
+            <TextInput value={groupSearch} onChangeText={setGroupSearch} placeholder="Search your groups" placeholderTextColor={colors.textMuted} style={styles.groupSearch} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-              {groups.map((g) => (
+              {groups.filter((g) => g.name.toLowerCase().includes(groupSearch.trim().toLowerCase())).map((g) => (
                 <TouchableOpacity
                   key={g.id}
                   style={[
@@ -263,6 +303,8 @@ export default function CreateExpenseScreen() {
             </ScrollView>
           </View>
         )}
+        {groups.length === 0 && <Text style={styles.helperText}>Create or join a group before adding a shared expense.</Text>}
+        </>}
 
 
         {/* Amount Input */}
@@ -270,10 +312,11 @@ export default function CreateExpenseScreen() {
           <Text style={styles.amountLabel}>Total Bill Amount</Text>
           <View style={styles.amountInputRow}>
             <Text style={styles.currencySymbol}>₹</Text>
-            <Input
+            <TextInput
               value={amount}
               onChangeText={setAmount}
               placeholder="0.00"
+              placeholderTextColor={colors.textMuted}
               keyboardType="decimal-pad"
               style={styles.amountInputField}
             />
@@ -314,6 +357,7 @@ export default function CreateExpenseScreen() {
           </ScrollView>
         </View>
 
+        {expenseScope === "GROUP" && <>
         {/* Reminder Deadline */}
         <View style={styles.section}>
           <Text style={styles.label}>Payment Reminder Deadline</Text>
@@ -429,16 +473,18 @@ export default function CreateExpenseScreen() {
             </View>
           </View>
         )}
+        </>}
 
         {/* Submit Button */}
         <View style={styles.submitWrapper}>
           <Button
-            title="Create Expense"
+            title={expenseScope === "PERSONAL" ? "Save Personal Expense" : "Create Group Expense"}
             onPress={handleSubmit}
             loading={createMutation.isPending}
             variant="primary"
           />
         </View>
+        </FadeInView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -463,7 +509,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.lg,
   },
@@ -476,6 +522,12 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing.xl,
   },
+  scopePicker: { flexDirection: "row", gap: spacing.sm },
+  scopeOption: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: spacing.sm, borderWidth: 1, borderColor: colors.surfaceBorder, backgroundColor: colors.surface, borderRadius: 10, paddingVertical: 12 },
+  scopeOptionActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  scopeOptionText: { ...typography.caption, color: colors.textSecondary, fontWeight: "600" },
+  scopeOptionTextActive: { color: colors.textInverse },
+  groupSearch: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceBorder, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 10, color: colors.textPrimary, marginBottom: spacing.sm },
   sectionTitle: {
     ...typography.caption,
     color: colors.textMuted,
@@ -485,12 +537,13 @@ const styles = StyleSheet.create({
   },
   amountCard: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 16,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
     marginBottom: spacing.xl,
     alignItems: "center",
+    ...shadows.card,
   },
   amountLabel: {
     ...typography.caption,
@@ -510,11 +563,16 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   amountInputField: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: "700",
     color: colors.textPrimary,
-    minWidth: 140,
+    minWidth: 120,
+    maxWidth: 200,
     textAlign: "center",
+    paddingVertical: 2,
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
   },
   label: {
     ...typography.body2,
@@ -606,7 +664,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderStyle: "dashed",
     borderColor: colors.surfaceBorder,
@@ -619,7 +677,7 @@ const styles = StyleSheet.create({
   },
   receiptPreviewCard: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
@@ -630,7 +688,7 @@ const styles = StyleSheet.create({
   receiptThumb: {
     width: 60,
     height: 60,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   removeReceiptBtn: {
     flexDirection: "row",
@@ -653,7 +711,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: colors.surface,
     padding: spacing.md,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
@@ -682,7 +740,7 @@ const styles = StyleSheet.create({
   },
   previewCard: {
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,

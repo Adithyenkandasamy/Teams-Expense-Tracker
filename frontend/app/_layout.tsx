@@ -1,21 +1,20 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, useColorScheme } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useRouter } from "expo-router";
 import { colors } from "../src/theme/colors";
 
 import { onAuthStateChanged } from "../src/services/firebase";
 import { auth } from "../src/services/firebase";
 import { useAuthStore } from "../src/store/authStore";
 import { getMe } from "../src/api/auth";
-import { getMyExpenses } from "../src/api/expenses";
 import {
   registerForPushNotificationsAsync,
   setupNotificationListeners,
-  broadcastNotification,
 } from "../src/services/notifications";
 import { NotificationToast } from "../src/components/common/NotificationToast";
 
@@ -31,52 +30,9 @@ const queryClient = new QueryClient({
   },
 });
 
-function RealtimeSyncListener() {
-  const user = useAuthStore((state) => state.user);
-  const prevExpenseIdsRef = React.useRef<Set<string>>(new Set());
-  const initialLoadRef = React.useRef(false);
-
-  const { data: allExpenses = [] } = useQuery({
-    queryKey: ["allExpenses"],
-    queryFn: getMyExpenses,
-    enabled: !!user,
-    refetchInterval: 30000,
-    refetchIntervalInBackground: false,
-  });
-
-  useEffect(() => {
-    if (!user || allExpenses.length === 0) return;
-
-    if (!initialLoadRef.current) {
-      initialLoadRef.current = true;
-      prevExpenseIdsRef.current = new Set(allExpenses.map((e: any) => e.id));
-      return;
-    }
-
-    for (const exp of allExpenses as any[]) {
-      if (!prevExpenseIdsRef.current.has(exp.id)) {
-        prevExpenseIdsRef.current.add(exp.id);
-        // Only notify if created by someone else
-        if (exp.created_by !== user.id) {
-          const creatorName = exp.creator?.name || "A roommate";
-          broadcastNotification(
-            "New Expense Added",
-            `${creatorName} added '${exp.description}' — ₹${exp.amount}`,
-            {
-              type: "NEW_EXPENSE",
-              route: `/expenses/${exp.id}`,
-              data: { expenseId: exp.id },
-            }
-          );
-        }
-      }
-    }
-  }, [allExpenses, user]);
-
-  return null;
-}
-
 export default function RootLayout() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
   const setUser = useAuthStore((state) => state.setUser);
   const setFirebaseUser = useAuthStore((state) => state.setFirebaseUser);
   const setToken = useAuthStore((state) => state.setToken);
@@ -125,20 +81,20 @@ export default function RootLayout() {
     });
 
     // Setup push notification listener
-    const notificationCleanup = setupNotificationListeners();
+    const notificationCleanup = setupNotificationListeners((route) => router.push(route as any));
 
     return () => {
       unsubscribe();
       notificationCleanup();
     };
-  }, []);
+  }, [router]);
 
   const isWeb = Platform.OS === "web";
 
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style="light" />
+        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
         <View style={isWeb ? styles.webWrapper : styles.nativeWrapper}>
           <View style={isWeb ? styles.webContainer : styles.nativeWrapper}>
             <Stack
@@ -197,7 +153,6 @@ export default function RootLayout() {
               />
               <Stack.Screen name="balances/[groupId]" options={{ headerShown: false }} />
             </Stack>
-            <RealtimeSyncListener />
             <NotificationToast />
           </View>
         </View>
@@ -212,7 +167,7 @@ const styles = StyleSheet.create({
   },
   webWrapper: {
     flex: 1,
-    backgroundColor: "#000000",
+    backgroundColor: "#EEF2F6",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
@@ -228,10 +183,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.6,
-    shadowRadius: 32,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
   },
 });
 

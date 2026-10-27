@@ -3,7 +3,7 @@
  * Supports:
  * - HTML5 Desktop Web Notifications (Browser when tab is in background or minimized)
  * - Expo / FCM Push Notifications on Mobile devices
- * - In-app notification toast trigger helper
+ * - In-app notification history stored on the device
  */
 
 import { Platform } from "react-native";
@@ -96,7 +96,7 @@ export function showSystemNotification(title: string, body: string, data?: any) 
 export function broadcastNotification(
   title: string,
   body: string,
-  options?: { type?: string; route?: string; data?: any }
+  options?: { id?: string; type?: string; route?: string; data?: any }
 ) {
   // 1. In-app Toast banner & Notification History
   useNotificationStore.getState().showToast({
@@ -110,11 +110,10 @@ export function broadcastNotification(
     title,
     body,
     type: options?.type || "INFO",
+    id: options?.id,
     route: options?.route,
+    data: options?.data,
   });
-
-  // 2. Out-of-app OS / Browser Notification
-  showSystemNotification(title, body, options?.data);
 }
 
 /**
@@ -176,20 +175,37 @@ export function setupNotificationListeners(
   }
 
   try {
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
-      const data = response?.notification?.request?.content?.data;
-      if (onNavigate) {
-        if (data?.expenseId) {
-          onNavigate(`/expenses/${data.expenseId}`);
-        } else if (data?.groupId) {
-          onNavigate(`/groups/${data.groupId}`);
-        } else if (data?.type === "PAYMENT_SUBMITTED" && data?.expenseId) {
-          onNavigate(`/expenses/${data.expenseId}/review`);
-        }
-      }
+    const receivedSubscription = Notifications.addNotificationReceivedListener((notification: any) => {
+      const content = notification?.request?.content;
+      const data = content?.data || {};
+      broadcastNotification(content?.title || "Expense update", content?.body || "Open to view details.", {
+        id: notification?.request?.identifier,
+        type: data.type || "INFO",
+        route: data.route,
+        data,
+      });
     });
 
+    const handleResponse = (response: any) => {
+      const notification = response?.notification;
+      const data = notification?.request?.content?.data || {};
+      const id = notification?.request?.identifier;
+      if (id) useNotificationStore.getState().markAsRead(id);
+      const route = data.route
+        || (data.expenseId ? `/expenses/${data.expenseId}` : undefined)
+        || (data.groupId ? `/groups/${data.groupId}` : undefined);
+      if (route) onNavigate?.(route);
+    };
+
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response: any) => {
+      handleResponse(response);
+    });
+
+    const lastResponse = Notifications.getLastNotificationResponse?.();
+    if (lastResponse) handleResponse(lastResponse);
+
     return () => {
+      receivedSubscription.remove();
       responseSubscription.remove();
     };
   } catch {

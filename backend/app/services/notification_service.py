@@ -109,13 +109,23 @@ class NotificationService:
     # --- Convenience methods for specific notification types ---
 
     async def notify_new_expense(
-        self, user_ids: list[uuid.UUID], expense_description: str, amount: str
+        self,
+        user_ids: list[uuid.UUID],
+        expense_description: str,
+        amount: str,
+        expense_id: uuid.UUID | None = None,
+        group_id: uuid.UUID | None = None,
     ) -> None:
+        data = {"type": "NEW_EXPENSE"}
+        if expense_id:
+            data.update({"expenseId": str(expense_id), "route": f"/expenses/{expense_id}"})
+        if group_id:
+            data["groupId"] = str(group_id)
         await self.send_to_users(
             user_ids,
             title="New Expense",
             body=f"New expense: {expense_description} — ₹{amount}",
-            data={"type": "new_expense"},
+            data=data,
         )
 
     async def notify_payment_reminder(
@@ -129,53 +139,84 @@ class NotificationService:
         )
 
     async def notify_payment_submitted(
-        self, leader_id: uuid.UUID, payer_name: str, expense_description: str
+        self,
+        leader_id: uuid.UUID,
+        payer_name: str,
+        expense_description: str,
+        expense_id: uuid.UUID | None = None,
     ) -> None:
+        data = {"type": "PAYMENT_SUBMITTED"}
+        if expense_id:
+            data.update({"expenseId": str(expense_id), "route": f"/expenses/{expense_id}/review"})
         await self.send_to_user(
             leader_id,
             title="Payment Submitted",
             body=f"{payer_name} submitted payment for '{expense_description}'",
-            data={"type": "payment_submitted"},
+            data=data,
         )
 
     async def notify_payment_accepted(
-        self, user_id: uuid.UUID, expense_description: str
+        self,
+        user_id: uuid.UUID,
+        expense_description: str,
+        expense_id: uuid.UUID | None = None,
     ) -> None:
+        data = {"type": "PAYMENT_ACCEPTED"}
+        if expense_id:
+            data.update({"expenseId": str(expense_id), "route": f"/expenses/{expense_id}"})
         await self.send_to_user(
             user_id,
             title="Payment Accepted",
             body=f"Your payment for '{expense_description}' was accepted",
-            data={"type": "payment_accepted"},
+            data=data,
         )
 
     async def notify_payment_rejected(
-        self, user_id: uuid.UUID, expense_description: str
+        self,
+        user_id: uuid.UUID,
+        expense_description: str,
+        expense_id: uuid.UUID | None = None,
     ) -> None:
+        data = {"type": "PAYMENT_REJECTED"}
+        if expense_id:
+            data.update({"expenseId": str(expense_id), "route": f"/expenses/{expense_id}"})
         await self.send_to_user(
             user_id,
             title="Payment Rejected",
             body=f"Your payment for '{expense_description}' was rejected. Please resubmit.",
-            data={"type": "payment_rejected"},
+            data=data,
         )
 
     async def notify_expense_ready_to_close(
-        self, leader_id: uuid.UUID, expense_description: str
+        self,
+        leader_id: uuid.UUID,
+        expense_description: str,
+        expense_id: uuid.UUID | None = None,
     ) -> None:
+        data = {"type": "EXPENSE_READY_TO_CLOSE"}
+        if expense_id:
+            data.update({"expenseId": str(expense_id), "route": f"/expenses/{expense_id}"})
         await self.send_to_user(
             leader_id,
             title="Expense Ready to Close",
             body=f"All payments received for '{expense_description}'. You can close it now.",
-            data={"type": "expense_ready_to_close"},
+            data=data,
         )
 
     async def notify_expense_closed(
-        self, user_ids: list[uuid.UUID], expense_description: str
+        self,
+        user_ids: list[uuid.UUID],
+        expense_description: str,
+        expense_id: uuid.UUID | None = None,
     ) -> None:
+        data = {"type": "EXPENSE_CLOSED"}
+        if expense_id:
+            data.update({"expenseId": str(expense_id), "route": f"/expenses/{expense_id}"})
         await self.send_to_users(
             user_ids,
             title="Expense Closed",
             body=f"Expense '{expense_description}' has been closed",
-            data={"type": "expense_closed"},
+            data=data,
         )
 
     async def notify_deadline_extended(

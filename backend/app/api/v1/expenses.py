@@ -39,6 +39,8 @@ async def create_expense(
             user_ids=data.split_between,
             expense_description=data.description,
             amount=str(data.amount),
+            expense_id=expense.id,
+            group_id=group_id,
         )
     except Exception as e:
         import logging
@@ -115,6 +117,7 @@ async def close_expense(
     await notification_service.notify_expense_closed(
         user_ids=split_user_ids,
         expense_description=expense.description,
+        expense_id=expense.id,
     )
 
     return ExpenseResponse.model_validate(expense)

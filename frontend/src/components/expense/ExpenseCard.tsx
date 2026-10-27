@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Expense } from "../../types/models";
-import { colors, spacing, typography } from "../../theme/colors";
+import { colors, spacing, typography, shadows } from "../../theme/colors";
+import { AnimatedPressable } from "../animated/AnimatedPressable";
 import {
   formatINR,
   formatDate,
@@ -31,10 +32,10 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, onPress }) =>
   const mySplitBadge = mySplit ? getPaymentStatusBadge(mySplit.status) : null;
 
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       style={styles.card}
       onPress={onPress}
-      activeOpacity={0.8}
+      scaleTo={0.98}
     >
       <View style={styles.headerRow}>
         <View style={styles.titleArea}>
@@ -47,6 +48,15 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, onPress }) =>
             )}
             <Text style={styles.dateDot}>•</Text>
             <Text style={styles.date}>{formatDate(expense.created_at)}</Text>
+            {expense.receipt_url && (
+              <>
+                <Text style={styles.dateDot}>•</Text>
+                <View style={styles.receiptTag}>
+                  <Ionicons name="receipt-outline" size={11} color={colors.textSecondary} />
+                  <Text style={styles.receiptTagText}>Receipt</Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
         <Badge label={statusBadge.label} color={statusBadge.color} bg={statusBadge.bg} />
@@ -107,18 +117,19 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, onPress }) =>
           </Text>
         </View>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    ...shadows.card,
   },
   headerRow: {
     flexDirection: "row",
@@ -151,6 +162,20 @@ const styles = StyleSheet.create({
   date: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  receiptTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: colors.surfaceElevated,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  receiptTagText: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: colors.textSecondary,
   },
   divider: {
     height: 1,

@@ -13,7 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import * as Google from "expo-auth-session/providers/google";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
+import { FadeInView, AnimatedPressable } from "../../src/components/animated";
 import {
   auth,
   GoogleAuthProvider,
@@ -242,65 +243,71 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topSection}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="wallet-outline" size={44} color={colors.primary} />
+      <FadeInView delay={0}>
+        <View style={styles.topSection}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="wallet-outline" size={38} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>Team Expense Tracker</Text>
+          <Text style={styles.tagline}>
+            Split expenses. Track payments. Stay settled.
+          </Text>
         </View>
-        <Text style={styles.title}>Team Expense Tracker</Text>
-        <Text style={styles.tagline}>
-          Split expenses. Track payments. Stay settled.
-        </Text>
-      </View>
+      </FadeInView>
 
-      <View style={styles.middleSection}>
-        <View style={styles.featureCard}>
-          <View style={styles.featureItem}>
-            <Ionicons name="people-outline" size={20} color={colors.primary} />
-            <Text style={styles.featureText}>Manage roommate & team expenses</Text>
+      <FadeInView delay={80}>
+        <View style={styles.middleSection}>
+          <View style={styles.featureCard}>
+            <View style={styles.featureItem}>
+              <Ionicons name="people-outline" size={20} color={colors.primary} />
+              <Text style={styles.featureText}>Manage roommate & team expenses</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="flash-outline" size={20} color={colors.primary} />
+              <Text style={styles.featureText}>Instant UPI settlement links</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="receipt-outline" size={20} color={colors.primary} />
+              <Text style={styles.featureText}>Expense Leader payment reviews</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+              <Text style={styles.featureText}>Automatic deadline reminders</Text>
+            </View>
           </View>
-          <View style={styles.featureItem}>
-            <Ionicons name="flash-outline" size={20} color={colors.primary} />
-            <Text style={styles.featureText}>Instant UPI settlement links</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Ionicons name="receipt-outline" size={20} color={colors.primary} />
-            <Text style={styles.featureText}>Expense Leader payment reviews</Text>
-          </View>
-          <View style={styles.featureItem}>
-            <Ionicons name="notifications-outline" size={20} color={colors.primary} />
-            <Text style={styles.featureText}>Automatic deadline reminders</Text>
-          </View>
-        </View>
 
-        {errorMsg && (
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle" size={18} color={colors.danger} />
-            <Text style={styles.errorText}>{errorMsg}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.bottomSection}>
-        <TouchableOpacity
-          style={[styles.googleButton, loading && styles.buttonDisabled]}
-          onPress={handleGoogleSignIn}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.textInverse} size="small" />
-          ) : (
-            <>
-              <Ionicons name="logo-google" size={20} color={colors.textInverse} />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </>
+          {errorMsg && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={18} color={colors.danger} />
+              <Text style={styles.errorText}>{errorMsg}</Text>
+            </View>
           )}
-        </TouchableOpacity>
+        </View>
+      </FadeInView>
 
-        <Text style={styles.disclaimer}>
-          By continuing, you agree to our Terms of Service & Privacy Policy.
-        </Text>
-      </View>
+      <FadeInView delay={160}>
+        <View style={styles.bottomSection}>
+          <AnimatedPressable
+            style={[styles.googleButton, loading && styles.buttonDisabled]}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+            scaleTo={0.97}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.textInverse} size="small" />
+            ) : (
+              <>
+                <Ionicons name="logo-google" size={20} color={colors.textInverse} />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </>
+            )}
+          </AnimatedPressable>
+
+          <Text style={styles.disclaimer}>
+            By continuing, you agree to our Terms of Service & Privacy Policy.
+          </Text>
+        </View>
+      </FadeInView>
     </SafeAreaView>
   );
 }
@@ -321,13 +328,14 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 64,
     height: 64,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceElevated,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.lg,
+    ...shadows.card,
   },
   title: {
     ...typography.h1,
@@ -346,11 +354,12 @@ const styles = StyleSheet.create({
   },
   featureCard: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
     gap: spacing.md,
+    ...shadows.card,
   },
   featureItem: {
     flexDirection: "row",
@@ -385,10 +394,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.primary,
     width: "100%",
     height: 48,
     borderRadius: 8,
+    ...shadows.sm,
   },
   buttonDisabled: {
     opacity: 0.6,

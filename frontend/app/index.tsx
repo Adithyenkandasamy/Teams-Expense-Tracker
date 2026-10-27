@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "../src/store/authStore";
-import { colors, spacing, typography } from "../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../src/theme/colors";
+import { FadeInView, PulseView } from "../src/components/animated";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -21,15 +22,17 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="wallet" size={48} color={colors.primary} />
-        </View>
+      <FadeInView delay={0} style={styles.logoContainer}>
+        <PulseView minScale={0.94} maxScale={1.06} duration={2000}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="wallet-outline" size={44} color={colors.primary} />
+          </View>
+        </PulseView>
         <Text style={styles.title}>Team Expense Tracker</Text>
         <Text style={styles.subtitle}>
           Split expenses. Track payments. Stay settled.
         </Text>
-      </View>
+      </FadeInView>
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
@@ -52,13 +55,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors.primaryMuted,
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.xl,
+    ...shadows.card,
   },
   title: {
     ...typography.h1,

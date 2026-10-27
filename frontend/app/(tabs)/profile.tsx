@@ -14,12 +14,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "../../src/store/authStore";
 import { updateUserProfile } from "../../src/api/users";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { Avatar } from "../../src/components/common/Avatar";
 import { Input } from "../../src/components/common/Input";
 import { Button } from "../../src/components/common/Button";
 import { ConfirmModal } from "../../src/components/common/ConfirmModal";
+import { FadeInView } from "../../src/components/animated";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -95,89 +96,91 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        {/* User Avatar Card */}
-        <View style={styles.avatarCard}>
-          <Avatar name={user?.name || "User"} imageUrl={user?.profile_image} size={84} />
-          <Text style={styles.displayName}>{user?.name}</Text>
-          <Text style={styles.displayEmail}>{user?.email}</Text>
-          {user?.upi_id ? (
-            <View style={styles.upiPill}>
-              <Ionicons name="qr-code-outline" size={14} color={colors.primary} />
-              <Text style={styles.upiPillText}>{user.upi_id}</Text>
-            </View>
-          ) : (
-            <View style={styles.upiWarningPill}>
-              <Ionicons name="alert-circle-outline" size={14} color={colors.warning} />
-              <Text style={styles.upiWarningText}>Add UPI ID to receive payments</Text>
-            </View>
-          )}
-        </View>
+        <FadeInView delay={0}>
+          {/* User Avatar Card */}
+          <View style={styles.avatarCard}>
+            <Avatar name={user?.name || "User"} imageUrl={user?.profile_image} size={84} />
+            <Text style={styles.displayName}>{user?.name}</Text>
+            <Text style={styles.displayEmail}>{user?.email}</Text>
+            {user?.upi_id ? (
+              <View style={styles.upiPill}>
+                <Ionicons name="qr-code-outline" size={14} color={colors.primary} />
+                <Text style={styles.upiPillText}>{user.upi_id}</Text>
+              </View>
+            ) : (
+              <View style={styles.upiWarningPill}>
+                <Ionicons name="alert-circle-outline" size={14} color={colors.warning} />
+                <Text style={styles.upiWarningText}>Add UPI ID to receive payments</Text>
+              </View>
+            )}
+          </View>
 
-        {/* UPI Info Note */}
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle-outline" size={20} color={colors.info} />
-          <Text style={styles.infoText}>
-            When you create an expense as the Expense Leader, roommates can pay you
-            directly to your registered UPI ID.
-          </Text>
-        </View>
+          {/* UPI Info Note */}
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.info} />
+            <Text style={styles.infoText}>
+              When you create an expense as the Expense Leader, roommates can pay you
+              directly to your registered UPI ID.
+            </Text>
+          </View>
 
-        {/* Form Fields */}
-        <View style={styles.formSection}>
-          <Input
-            label="Full Name"
-            value={name}
-            onChangeText={setName}
-            placeholder="Your Name"
-            editable={isEditing}
-          />
+          {/* Form Fields */}
+          <View style={styles.formSection}>
+            <Input
+              label="Full Name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your Name"
+              editable={isEditing}
+            />
 
-          <Input
-            label="Email Address"
-            value={user?.email || ""}
-            editable={false}
-            helperText="Email is managed by Google authentication"
-          />
+            <Input
+              label="Email Address"
+              value={user?.email || ""}
+              editable={false}
+              helperText="Email is managed by Google authentication"
+            />
 
-          <Input
-            label="Phone Number"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="+91 98765 43210"
-            keyboardType="phone-pad"
-            editable={isEditing}
-          />
+            <Input
+              label="Phone Number"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="+91 98765 43210"
+              keyboardType="phone-pad"
+              editable={isEditing}
+            />
 
-          <Input
-            label="UPI ID"
-            value={upiId}
-            onChangeText={setUpiId}
-            placeholder="username@okhdfcbank / paytm / upi"
-            editable={isEditing}
-            helperText="Used when you are Expense Leader to receive settlements"
-          />
+            <Input
+              label="UPI ID"
+              value={upiId}
+              onChangeText={setUpiId}
+              placeholder="username@okhdfcbank / paytm / upi"
+              editable={isEditing}
+              helperText="Used when you are Expense Leader to receive settlements"
+            />
 
-          {isEditing && (
-            <View style={styles.saveBtnWrapper}>
-              <Button
-                title="Save Changes"
-                onPress={handleSave}
-                loading={updateMutation.isPending}
-                variant="primary"
-              />
-            </View>
-          )}
-        </View>
+            {isEditing && (
+              <View style={styles.saveBtnWrapper}>
+                <Button
+                  title="Save Changes"
+                  onPress={handleSave}
+                  loading={updateMutation.isPending}
+                  variant="primary"
+                />
+              </View>
+            )}
+          </View>
 
-        {/* Logout Section */}
-        <View style={styles.logoutSection}>
-          <Button
-            title="Log Out"
-            variant="danger"
-            icon={<Ionicons name="log-out-outline" size={18} color={colors.danger} />}
-            onPress={() => setLogoutModalVisible(true)}
-          />
-        </View>
+          {/* Logout Section */}
+          <View style={styles.logoutSection}>
+            <Button
+              title="Log Out"
+              variant="danger"
+              icon={<Ionicons name="log-out-outline" size={18} color="#FFFFFF" />}
+              onPress={() => setLogoutModalVisible(true)}
+            />
+          </View>
+        </FadeInView>
       </ScrollView>
 
       {/* Logout Confirmation */}
@@ -217,12 +220,13 @@ const styles = StyleSheet.create({
   },
   avatarCard: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: 14,
     padding: spacing.xl,
     alignItems: "center",
     marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    ...shadows.card,
   },
   displayName: {
     ...typography.h2,
@@ -287,11 +291,12 @@ const styles = StyleSheet.create({
   },
   formSection: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: 14,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
     marginBottom: spacing.xl,
+    ...shadows.card,
   },
   saveBtnWrapper: {
     marginTop: spacing.md,

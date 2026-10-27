@@ -15,10 +15,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { getPersonalExpenses, deletePersonalExpense } from "../../src/api/personalExpenses";
 import { useAuthStore } from "../../src/store/authStore";
 import { formatDate, formatINR } from "../../src/utils/formatters";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { EmptyState } from "../../src/components/common/EmptyState";
 import { LoadingState } from "../../src/components/common/LoadingState";
+import { FadeInView, AnimatedPressable } from "../../src/components/animated";
 
 const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Food: "restaurant-outline",
@@ -99,47 +100,56 @@ export default function PersonalExpensesScreen() {
         title="My Spending"
         subtitle="Personal expenses and monthly stats"
         rightAction={
-          <TouchableOpacity style={styles.addButton} onPress={() => router.push("/personal-expenses/create")}>
-            <Ionicons name="add" size={22} color={colors.textInverse} />
-          </TouchableOpacity>
+          <AnimatedPressable
+            style={styles.addButton}
+            onPress={() => router.push("/personal-expenses/create")}
+            scaleTo={0.92}
+          >
+            <Ionicons name="add" size={20} color={colors.textInverse} />
+          </AnimatedPressable>
         }
       />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
       >
-        <View style={styles.monthRow}>
-          <TouchableOpacity style={styles.monthArrow} onPress={() => moveMonth(-1)}>
-            <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.monthLabel}>{selectedMonth.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</Text>
-          <TouchableOpacity
-            style={styles.monthArrow}
-            onPress={() => moveMonth(1)}
-            disabled={monthKey === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`}
-          >
-            <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
+        <FadeInView delay={0}>
+          <View style={styles.monthRow}>
+            <AnimatedPressable style={styles.monthArrow} onPress={() => moveMonth(-1)} scaleTo={0.9}>
+              <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+            </AnimatedPressable>
+            <Text style={styles.monthLabel}>{selectedMonth.toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</Text>
+            <AnimatedPressable
+              style={styles.monthArrow}
+              onPress={() => moveMonth(1)}
+              scaleTo={0.9}
+              disabled={monthKey === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`}
+            >
+              <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+            </AnimatedPressable>
+          </View>
+        </FadeInView>
 
         {isLoading ? <LoadingState message="Loading your spending..." /> : (
           <>
-            <View style={styles.heroCard}>
-              <Text style={styles.eyebrow}>TOTAL SPENT</Text>
-              <Text style={styles.total}>{formatINR(stats.total)}</Text>
-              <Text style={styles.heroFoot}>{expenses.length} {expenses.length === 1 ? "expense" : "expenses"} this month</Text>
-            </View>
+            <FadeInView delay={60}>
+              <View style={styles.heroCard}>
+                <Text style={styles.eyebrow}>TOTAL SPENT</Text>
+                <Text style={styles.total}>{formatINR(stats.total)}</Text>
+                <Text style={styles.heroFoot}>{expenses.length} {expenses.length === 1 ? "expense" : "expenses"} this month</Text>
+              </View>
 
-            <View style={styles.statRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>DAILY AVERAGE</Text>
-                <Text style={styles.statValue}>{formatINR(stats.average)}</Text>
+              <View style={styles.statRow}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>DAILY AVERAGE</Text>
+                  <Text style={styles.statValue}>{formatINR(stats.average)}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>TOP CATEGORY</Text>
+                  <Text style={styles.statValue} numberOfLines={1}>{stats.categories[0]?.category || "None"}</Text>
+                </View>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>TOP CATEGORY</Text>
-                <Text style={styles.statValue} numberOfLines={1}>{stats.categories[0]?.category || "—"}</Text>
-              </View>
-            </View>
+            </FadeInView>
 
             {!!stats.categories.length && (
               <View style={styles.section}>
@@ -195,16 +205,49 @@ export default function PersonalExpensesScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   content: { padding: spacing.lg, paddingBottom: 40 },
-  addButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+  addButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.sm,
+  },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.lg },
-  monthArrow: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.surfaceBorder },
+  monthArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...shadows.sm,
+  },
   monthLabel: { ...typography.h3 },
-  heroCard: { padding: spacing.xl, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceBorder },
+  heroCard: {
+    padding: spacing.xl,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...shadows.card,
+  },
   eyebrow: { fontSize: 11, fontWeight: "700", color: colors.textMuted, letterSpacing: 1.1 },
-  total: { color: colors.textPrimary, fontSize: 34, fontWeight: "800", marginTop: 8 },
-  heroFoot: { color: colors.textSecondary, fontSize: 13, marginTop: 6 },
+  total: { color: colors.textPrimary, fontSize: 32, fontWeight: "800", marginTop: 6 },
+  heroFoot: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
   statRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.md },
-  statCard: { flex: 1, padding: spacing.lg, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.surfaceBorder },
+  statCard: {
+    flex: 1,
+    padding: spacing.lg,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...shadows.card,
+  },
   statLabel: { fontSize: 10, fontWeight: "700", color: colors.textMuted, letterSpacing: 0.6 },
   statValue: { color: colors.textPrimary, fontSize: 17, fontWeight: "700", marginTop: 8 },
   section: { marginTop: spacing.xl },

@@ -95,6 +95,33 @@ export interface PersonalExpense {
   created_at: string;
 }
 
+export interface SavingsTarget {
+  id: string;
+  name: string;
+  target_amount: string | number;
+  saved_amount: string | number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MonthlySpendingBucket {
+  month: string;
+  personal_total: string | number;
+  group_total: string | number;
+  your_group_share: string | number;
+}
+
+export interface SpendingCategory {
+  category: string;
+  personal_total: string | number;
+  your_group_share: string | number;
+}
+
+export interface MonthlySpendingResponse {
+  months: MonthlySpendingBucket[];
+  categories: SpendingCategory[];
+}
+
 export interface BalanceEntry {
   user_id: string;
   user_name: string;
@@ -117,5 +144,6 @@ export interface NotificationItem {
   type: string;
   timestamp: string;
   read: boolean;
+  route?: string;
   data?: Record<string, any>;
 }

@@ -1,13 +1,13 @@
 import React from "react";
 import {
-  TouchableOpacity,
   Text,
   ActivityIndicator,
   StyleSheet,
   ViewStyle,
   TextStyle,
 } from "react-native";
-import { colors, spacing } from "../../theme/colors";
+import { colors, spacing, shadows } from "../../theme/colors";
+import { AnimatedPressable } from "../animated/AnimatedPressable";
 
 export type ButtonSize = "sm" | "md" | "lg" | "small" | "medium" | "large";
 
@@ -84,8 +84,8 @@ export const Button: React.FC<ButtonProps> = ({
   const sStyles = getSizeStyles();
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.8}
+    <AnimatedPressable
+      scaleTo={0.97}
       onPress={onPress}
       disabled={disabled || loading}
       style={[
@@ -121,7 +121,7 @@ export const Button: React.FC<ButtonProps> = ({
           </Text>
         </>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 
@@ -137,6 +137,7 @@ const styles = StyleSheet.create({
   },
   primaryContainer: {
     backgroundColor: colors.primary,
+    ...shadows.sm,
   },
   primaryText: {
     color: colors.textInverse,

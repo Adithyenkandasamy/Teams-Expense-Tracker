@@ -11,10 +11,11 @@ import { useRouter } from "expo-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { joinGroup } from "../../src/api/groups";
-import { colors, spacing, typography } from "../../src/theme/colors";
+import { colors, spacing, typography, shadows } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { Input } from "../../src/components/common/Input";
 import { Button } from "../../src/components/common/Button";
+import { FadeInView } from "../../src/components/animated";
 
 export default function JoinGroupScreen() {
   const router = useRouter();
@@ -79,34 +80,36 @@ export default function JoinGroupScreen() {
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.card}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="key-outline" size={40} color={colors.primary} />
-          </View>
+        <FadeInView delay={0}>
+          <View style={styles.card}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="key-outline" size={36} color={colors.primary} />
+            </View>
 
-          <Text style={styles.title}>Have an Invite Code?</Text>
-          <Text style={styles.subtitle}>
-            Enter the 6-8 character invite code shared by your group leader or roommate.
-          </Text>
+            <Text style={styles.title}>Have an Invite Code?</Text>
+            <Text style={styles.subtitle}>
+              Enter the 6-8 character invite code shared by your group leader or roommate.
+            </Text>
 
-          <Input
-            label="Invite Code *"
-            value={inviteCode}
-            onChangeText={(text) => setInviteCode(text.toUpperCase())}
-            placeholder="e.g. GR4X9B"
-            autoCapitalize="characters"
-          />
-
-          <View style={styles.buttonWrapper}>
-            <Button
-              title="Join Group"
-              onPress={handleJoin}
-              loading={mutation.isPending}
-              variant="primary"
-              icon={<Ionicons name="enter-outline" size={18} color={colors.textInverse} />}
+            <Input
+              label="Invite Code *"
+              value={inviteCode}
+              onChangeText={(text) => setInviteCode(text.toUpperCase())}
+              placeholder="e.g. GR4X9B"
+              autoCapitalize="characters"
             />
+
+            <View style={styles.buttonWrapper}>
+              <Button
+                title="Join Group"
+                onPress={handleJoin}
+                loading={mutation.isPending}
+                variant="primary"
+                icon={<Ionicons name="enter-outline" size={18} color={colors.textInverse} />}
+              />
+            </View>
           </View>
-        </View>
+        </FadeInView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -130,6 +133,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
     alignItems: "center",
+    ...shadows.card,
   },
   iconCircle: {
     width: 72,

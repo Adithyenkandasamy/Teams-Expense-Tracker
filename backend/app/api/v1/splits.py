@@ -49,6 +49,7 @@ async def submit_payment(
             leader_id=expense.created_by,
             payer_name=current_user.name or "A roommate",
             expense_description=expense.description,
+            expense_id=expense.id,
         )
     except Exception as e:
         import logging
@@ -75,6 +76,7 @@ async def approve_payment(
         await notification_service.notify_payment_accepted(
             user_id=split.user_id,
             expense_description=expense.description,
+            expense_id=expense.id,
         )
 
         from app.models.enums import ExpenseStatus
@@ -82,6 +84,7 @@ async def approve_payment(
             await notification_service.notify_expense_ready_to_close(
                 leader_id=expense.created_by,
                 expense_description=expense.description,
+                expense_id=expense.id,
             )
     except Exception as e:
         import logging
@@ -108,6 +111,7 @@ async def reject_payment(
         await notification_service.notify_payment_rejected(
             user_id=split.user_id,
             expense_description=expense.description,
+            expense_id=expense.id,
         )
     except Exception as e:
         import logging

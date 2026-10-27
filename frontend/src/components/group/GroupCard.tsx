@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Group } from "../../types/models";
-import { colors, spacing, typography } from "../../theme/colors";
+import { colors, spacing, typography, shadows } from "../../theme/colors";
+import { AnimatedPressable } from "../animated/AnimatedPressable";
 
 interface GroupCardProps {
   group: Group;
@@ -13,10 +14,10 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onPress }) => {
   const memberCount = group.members?.length || group.member_count || 1;
 
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       style={styles.card}
       onPress={onPress}
-      activeOpacity={0.8}
+      scaleTo={0.98}
     >
       <View style={styles.contentRow}>
         <View style={styles.iconCircle}>
@@ -45,18 +46,19 @@ export const GroupCard: React.FC<GroupCardProps> = ({ group, onPress }) => {
 
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: spacing.lg,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    ...shadows.card,
   },
   contentRow: {
     flexDirection: "row",
@@ -65,7 +67,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
