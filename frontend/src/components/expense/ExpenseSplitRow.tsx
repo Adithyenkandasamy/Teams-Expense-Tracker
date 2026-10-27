@@ -13,6 +13,7 @@ interface ExpenseSplitRowProps {
   isCurrentUser: boolean;
   onPay?: () => void;
   onReview?: () => void;
+  onViewProof?: (url: string) => void;
 }
 
 export const ExpenseSplitRow: React.FC<ExpenseSplitRowProps> = ({
@@ -21,11 +22,13 @@ export const ExpenseSplitRow: React.FC<ExpenseSplitRowProps> = ({
   isCurrentUser,
   onPay,
   onReview,
+  onViewProof,
 }) => {
   const badge = getPaymentStatusBadge(split.status);
   const userName = split.user?.name || "Member";
   const userEmail = split.user?.email || "";
   const profileImage = split.user?.profile_image;
+  const proofUrl = split.payment_proofs?.[0]?.image_url;
 
   const canPay = isCurrentUser && (split.status === "PENDING" || split.status === "REJECTED");
   const canReview = isExpenseLeader && split.status === "PAYMENT_SUBMITTED";
@@ -54,6 +57,17 @@ export const ExpenseSplitRow: React.FC<ExpenseSplitRowProps> = ({
         <View style={styles.badgeWrapper}>
           <Badge label={badge.label} color={badge.color} bg={badge.bg} size="small" />
         </View>
+
+        {proofUrl && onViewProof && (
+          <TouchableOpacity
+            style={styles.proofButton}
+            onPress={() => onViewProof(proofUrl)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="receipt-outline" size={13} color={colors.primary} />
+            <Text style={styles.proofButtonText}>Receipt Proof</Text>
+          </TouchableOpacity>
+        )}
 
         {canPay && onPay && (
           <TouchableOpacity
@@ -157,6 +171,23 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   reviewButtonText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  proofButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: spacing.xs,
+  },
+  proofButtonText: {
     ...typography.caption,
     color: colors.primary,
     fontWeight: "600",

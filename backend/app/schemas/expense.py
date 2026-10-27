@@ -35,6 +35,18 @@ class ExpenseCreate(BaseModel):
         return v
 
 
+class PaymentProofResponse(BaseModel):
+    """Payment proof data."""
+
+    id: uuid.UUID
+    expense_split_id: uuid.UUID
+    uploaded_by: uuid.UUID
+    image_url: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ExpenseSplitResponse(BaseModel):
     """An individual split in an expense."""
 
@@ -48,6 +60,7 @@ class ExpenseSplitResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     user: UserResponse | None = None
+    payment_proofs: list[PaymentProofResponse] = []
 
     model_config = {"from_attributes": True}
 
@@ -87,15 +100,3 @@ class PaymentAction(BaseModel):
     """Request body for approving/rejecting a payment."""
 
     note: str | None = Field(None, max_length=500)
-
-
-class PaymentProofResponse(BaseModel):
-    """Payment proof data."""
-
-    id: uuid.UUID
-    expense_split_id: uuid.UUID
-    uploaded_by: uuid.UUID
-    image_url: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}

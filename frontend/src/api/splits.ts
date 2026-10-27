@@ -27,14 +27,7 @@ export async function submitPayment(
 
     const response = await apiClient.post<ExpenseSplit>(
       `/splits/${splitId}/payment`,
-      formData,
-      Platform.OS === "web"
-        ? undefined
-        : {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
+      formData
     );
     return response.data;
   }

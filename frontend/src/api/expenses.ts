@@ -69,14 +69,7 @@ export async function uploadReceipt(
 
   const response = await apiClient.post<Expense>(
     `/expenses/${expenseId}/receipt`,
-    formData,
-    Platform.OS === "web"
-      ? undefined
-      : {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+    formData
   );
   return response.data;
 }

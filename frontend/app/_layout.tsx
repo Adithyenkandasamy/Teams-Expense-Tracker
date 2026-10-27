@@ -182,6 +182,10 @@ export default function RootLayout() {
                 name="expenses/create"
                 options={{ presentation: "modal", headerShown: false }}
               />
+              <Stack.Screen
+                name="personal-expenses/create"
+                options={{ presentation: "modal", headerShown: false }}
+              />
               <Stack.Screen name="expenses/[expenseId]/index" options={{ headerShown: false }} />
               <Stack.Screen
                 name="expenses/[expenseId]/payment"

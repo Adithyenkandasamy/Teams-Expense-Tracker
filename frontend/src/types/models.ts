@@ -86,6 +86,15 @@ export interface Expense {
   payer?: User | null;
 }
 
+export interface PersonalExpense {
+  id: string;
+  amount: string | number;
+  description: string;
+  category: string;
+  spent_at: string;
+  created_at: string;
+}
+
 export interface BalanceEntry {
   user_id: string;
   user_name: string;

@@ -8,6 +8,7 @@ interface UpiPaymentParams {
   upiId: string;
   payeeName: string;
   amount: string | number;
+  transactionReference?: string;
   transactionNote?: string;
 }
 
@@ -19,15 +20,27 @@ export function buildUpiUrl({
   upiId,
   payeeName,
   amount,
+  transactionReference,
   transactionNote = "Expense payment",
 }: UpiPaymentParams): string {
-  const formattedAmount = typeof amount === "number" ? amount.toFixed(2) : amount;
-  const encodedName = encodeURIComponent(payeeName || "Expense Leader");
-  const encodedNote = encodeURIComponent(transactionNote);
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error("Enter a valid payment amount.");
+  }
 
-  return `upi://pay?pa=${encodeURIComponent(
-    upiId
-  )}&pn=${encodedName}&am=${formattedAmount}&cu=INR&tn=${encodedNote}`;
+  const normalizedUpiId = upiId.trim();
+  if (!/^[^\s@]+@[^\s@]+$/.test(normalizedUpiId)) {
+    throw new Error("The recipient UPI ID is invalid.");
+  }
+
+  const formattedAmount = numericAmount.toFixed(2);
+  const encodedName = encodeURIComponent(payeeName || "Expense Leader");
+  const encodedNote = encodeURIComponent(transactionNote.slice(0, 80));
+  const reference = transactionReference
+    ? `&tr=${encodeURIComponent(transactionReference)}`
+    : "";
+
+  return `upi://pay?pa=${encodeURIComponent(normalizedUpiId)}&pn=${encodedName}&am=${formattedAmount}&cu=INR&tn=${encodedNote}${reference}`;
 }
 
 /**
@@ -35,9 +48,8 @@ export function buildUpiUrl({
  * Note: Launching UPI does NOT confirm payment. User must still submit confirmation to the backend.
  */
 export async function launchUpiPayment(params: UpiPaymentParams): Promise<boolean> {
-  const url = buildUpiUrl(params);
-
   try {
+    const url = buildUpiUrl(params);
     const supported = await Linking.canOpenURL(url);
     if (supported || Platform.OS === "android") {
       await Linking.openURL(url);

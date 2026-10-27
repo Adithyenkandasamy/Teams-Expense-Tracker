@@ -42,6 +42,7 @@ export default function ExpenseDetailScreen() {
 
   const [receiptVisible, setReceiptVisible] = useState(false);
   const [closeModalVisible, setCloseModalVisible] = useState(false);
+  const [viewProofUrl, setViewProofUrl] = useState<string | null>(null);
 
   const {
     data: expense,
@@ -321,6 +322,7 @@ export default function ExpenseDetailScreen() {
               isCurrentUser={split.user_id === currentUserId}
               onPay={() => router.push(`/expenses/${expense.id}/payment` as any)}
               onReview={() => router.push(`/expenses/${expense.id}/review` as any)}
+              onViewProof={(url) => setViewProofUrl(url)}
             />
           ))}
         </View>
@@ -328,9 +330,12 @@ export default function ExpenseDetailScreen() {
 
       {/* Receipt Viewer Modal */}
       <ReceiptModal
-        visible={receiptVisible}
-        imageUrl={expense.receipt_url}
-        onClose={() => setReceiptVisible(false)}
+        visible={receiptVisible || !!viewProofUrl}
+        imageUrl={viewProofUrl || expense.receipt_url}
+        onClose={() => {
+          setReceiptVisible(false);
+          setViewProofUrl(null);
+        }}
       />
 
       {/* Close Expense Confirmation */}

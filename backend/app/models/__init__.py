@@ -5,6 +5,7 @@ from app.models.device_token import DeviceToken
 from app.models.enums import ExpenseStatus, GroupRole, PaymentStatus
 from app.models.expense import DeadlineHistory, Expense, ExpenseSplit, PaymentProof
 from app.models.group import Group, GroupMember
+from app.models.personal_expense import PersonalExpense
 from app.models.user import User
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     "User",
     "Group",
     "GroupMember",
+    "PersonalExpense",
     "Expense",
     "ExpenseSplit",
     "PaymentProof",

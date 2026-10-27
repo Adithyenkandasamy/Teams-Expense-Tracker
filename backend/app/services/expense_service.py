@@ -38,19 +38,26 @@ def _split_amount_equally(total: Decimal, num_users: int) -> list[Decimal]:
     return amounts
 
 
-def _expense_response_load_options():
+def _expense_response_load_options(*, include_payment_proofs: bool = True):
     """Load fields returned by expense APIs, skipping unused relationships."""
     split_user = selectinload(ExpenseSplit.user).options(
         noload(User.group_memberships), noload(User.device_tokens)
     )
+    split_options = [split_user, noload(ExpenseSplit.expense)]
+    if include_payment_proofs:
+        split_options.append(
+            selectinload(ExpenseSplit.payment_proofs).options(
+                noload(PaymentProof.expense_split),
+                noload(PaymentProof.uploader),
+            )
+        )
+    else:
+        split_options.append(noload(ExpenseSplit.payment_proofs))
+
     return (
         noload(Expense.group),
         noload(Expense.deadline_history),
-        selectinload(Expense.splits).options(
-            split_user,
-            noload(ExpenseSplit.payment_proofs),
-            noload(ExpenseSplit.expense),
-        ),
+        selectinload(Expense.splits).options(*split_options),
         selectinload(Expense.creator).options(
             noload(User.group_memberships), noload(User.device_tokens)
         ),
@@ -149,7 +156,7 @@ class ExpenseService:
         """Get all expenses for a group."""
         result = await self.db.execute(
             select(Expense)
-            .options(*_expense_response_load_options())
+            .options(*_expense_response_load_options(include_payment_proofs=False))
             .where(Expense.group_id == group_id)
             .order_by(Expense.created_at.desc())
         )
@@ -161,25 +168,7 @@ class ExpenseService:
             select(Expense)
             .join(GroupMember, GroupMember.group_id == Expense.group_id)
             .where(GroupMember.user_id == user_id)
-            .options(*_expense_response_load_options())
-            .order_by(Expense.created_at.desc())
-        )
-        return list(result.scalars().all())
-
-    async def get_user_expenses(self, user_id: uuid.UUID) -> list[Expense]:
-        """Get all expenses across all groups the user belongs to in a single query."""
-        from app.models.group import GroupMember
-
-        user_group_ids_subq = select(GroupMember.group_id).where(GroupMember.user_id == user_id)
-        result = await self.db.execute(
-            select(Expense)
-            .options(
-                selectinload(Expense.splits).selectinload(ExpenseSplit.user),
-                selectinload(Expense.splits).selectinload(ExpenseSplit.payment_proofs),
-                selectinload(Expense.creator),
-                selectinload(Expense.payer),
-            )
-            .where(Expense.group_id.in_(user_group_ids_subq))
+            .options(*_expense_response_load_options(include_payment_proofs=False))
             .order_by(Expense.created_at.desc())
         )
         return list(result.scalars().all())
@@ -192,7 +181,10 @@ class ExpenseService:
                 selectinload(ExpenseSplit.user).options(
                     noload(User.group_memberships), noload(User.device_tokens)
                 ),
-                noload(ExpenseSplit.payment_proofs),
+                selectinload(ExpenseSplit.payment_proofs).options(
+                    noload(PaymentProof.expense_split),
+                    noload(PaymentProof.uploader),
+                ),
                 noload(ExpenseSplit.expense),
             )
             .where(ExpenseSplit.id == split_id)

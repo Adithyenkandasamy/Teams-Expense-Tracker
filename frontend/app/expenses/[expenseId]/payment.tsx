@@ -143,10 +143,20 @@ export default function PaymentScreen() {
       return;
     }
 
+    const recipientUpiId = leader.upi_id.trim();
+    if (!/^[^\s@]+@[^\s@]+$/.test(recipientUpiId)) {
+      Alert.alert(
+        "Check UPI ID",
+        `${leader.name}'s saved UPI ID does not look valid. Ask them to correct it in Profile before retrying.`
+      );
+      return;
+    }
+
     const success = await launchUpiPayment({
-      upiId: leader.upi_id,
+      upiId: recipientUpiId,
       payeeName: leader.name,
       amount: mySplit.amount,
+      transactionReference: `${mySplit.id.replace(/-/g, "").slice(0, 12)}${Date.now().toString(36)}`,
       transactionNote: `Settlement for ${expense?.description}`,
     });
 

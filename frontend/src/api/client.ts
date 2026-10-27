@@ -29,9 +29,14 @@ export const apiClient = axios.create({
   timeout: 35000,
 });
 
-// Request interceptor: Attach Firebase ID Token
+// Request interceptor: Attach Firebase ID Token and configure headers
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    // If sending FormData (file uploads), let axios & the runtime generate the multipart boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
+
     try {
       // 1. Try to get live token from Firebase Auth
       let token = await getIdToken();

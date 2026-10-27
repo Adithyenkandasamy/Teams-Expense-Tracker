@@ -240,45 +240,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleDevSignIn = async () => {
-    try {
-      setLoading(true);
-      setErrorMsg(null);
-      const res = await apiClient.post("/auth/dev-token");
-      const customToken = res.data.custom_token;
-
-      const userCredential = await signInWithCustomToken(auth, customToken);
-      const fbUser = userCredential.user;
-      const idToken = await fbUser.getIdToken(true);
-
-      setFirebaseUser(fbUser);
-      setToken(idToken);
-
-      try {
-        const backendUser = await getMe();
-        setUser(backendUser);
-      } catch {
-        setUser({
-          id: fbUser.uid,
-          firebase_uid: fbUser.uid,
-          name: fbUser.displayName || "Adithyen",
-          email: fbUser.email || "aadithyen1@gmail.com",
-          profile_image: fbUser.photoURL,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-
-      await registerForPushNotificationsAsync();
-      router.replace("/(tabs)/home");
-    } catch (err: any) {
-      console.warn("Dev login error:", err);
-      setErrorMsg(err?.message || "Failed to sign in with test account.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topSection}>
@@ -334,16 +295,6 @@ export default function LoginScreen() {
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </>
           )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.devButton, loading && styles.buttonDisabled]}
-          onPress={handleDevSignIn}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="flash-outline" size={18} color={colors.primary} />
-          <Text style={styles.devButtonText}>Instant Test Sign-In (Adithyen)</Text>
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
@@ -446,23 +397,6 @@ const styles = StyleSheet.create({
     ...typography.body1,
     fontWeight: "600",
     color: colors.textInverse,
-  },
-  devButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    width: "100%",
-    height: 44,
-    borderRadius: 8,
-  },
-  devButtonText: {
-    ...typography.body2,
-    fontWeight: "500",
-    color: colors.textPrimary,
   },
   disclaimer: {
     ...typography.caption,

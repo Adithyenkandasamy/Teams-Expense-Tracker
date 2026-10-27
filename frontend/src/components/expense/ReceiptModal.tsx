@@ -30,6 +30,13 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
+  React.useEffect(() => {
+    if (visible) {
+      setLoading(true);
+      setHasError(false);
+    }
+  }, [visible, imageUrl]);
+
   const handleClose = () => {
     setLoading(true);
     setHasError(false);
