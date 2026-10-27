@@ -72,7 +72,12 @@ export default function CreateExpenseScreen() {
   const [groupSearch, setGroupSearch] = useState("");
 
   // Group members for the chosen group
-  const { data: members = [] } = useQuery({
+  const {
+    data: members = [],
+    isLoading: isLoadingMembers,
+    isError: membersLoadError,
+    refetch: refetchMembers,
+  } = useQuery({
     queryKey: ["groupMembers", selectedGroupId],
     queryFn: () => getGroupMembers(selectedGroupId),
     enabled: !!selectedGroupId && expenseScope === "GROUP",
@@ -504,9 +509,10 @@ export default function CreateExpenseScreen() {
                             {g.name}
                           </Text>
                           <Text style={styles.groupPillMembers}>
-                            {g.members?.length || 0} members
+                            {g.member_count ?? g.members?.length ?? 0} {(g.member_count ?? g.members?.length ?? 0) === 1 ? "member" : "members"}
                           </Text>
                         </View>
+                        {isSelected && <Ionicons name="checkmark-circle" size={16} color={colors.primary} />}
                       </TouchableOpacity>
                     );
                   })}
@@ -527,7 +533,15 @@ export default function CreateExpenseScreen() {
                 </View>
 
                 <View style={styles.membersGrid}>
-                  {members.map((member) => {
+                  {isLoadingMembers ? (
+                    <Text style={styles.emptyHintText}>Loading group members…</Text>
+                  ) : membersLoadError ? (
+                    <TouchableOpacity onPress={() => { void refetchMembers(); }} accessibilityRole="button">
+                      <Text style={styles.fieldErrorText}>Could not load members. Tap to retry.</Text>
+                    </TouchableOpacity>
+                  ) : members.length === 0 ? (
+                    <Text style={styles.emptyHintText}>No members were returned for this group.</Text>
+                  ) : members.map((member) => {
                     const isIncluded = selectedMemberIds.includes(member.user_id);
                     const isCurrent = member.user_id === currentUser?.id;
 
@@ -828,7 +842,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   scopeTitleActive: {
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   scopeSub: {
     ...typography.caption,
@@ -970,7 +984,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   groupPillNameSelected: {
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   groupPillMembers: {
     ...typography.caption,

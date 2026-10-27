@@ -3,7 +3,7 @@
 import enum
 
 
-class GroupRole(enum.StrEnum):
+class GroupRole(str, enum.Enum):
     """Roles within a group."""
 
     OWNER = "OWNER"
@@ -11,7 +11,7 @@ class GroupRole(enum.StrEnum):
     MEMBER = "MEMBER"
 
 
-class ExpenseStatus(enum.StrEnum):
+class ExpenseStatus(str, enum.Enum):
     """Lifecycle status of an expense."""
 
     ACTIVE = "ACTIVE"
@@ -19,7 +19,7 @@ class ExpenseStatus(enum.StrEnum):
     CLOSED = "CLOSED"
 
 
-class PaymentStatus(enum.StrEnum):
+class PaymentStatus(str, enum.Enum):
     """Payment status for an expense split."""
 
     PENDING = "PENDING"

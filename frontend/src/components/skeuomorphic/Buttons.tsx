@@ -41,7 +41,7 @@ export function PrimaryButton({
     if (disabled || loading) return;
     Animated.spring(pressAnim, {
       toValue: 1,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
       tension: 300,
       friction: 20,
     }).start();
@@ -50,7 +50,7 @@ export function PrimaryButton({
   const handlePressOut = () => {
     Animated.spring(pressAnim, {
       toValue: 0,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
       tension: 300,
       friction: 20,
     }).start();
@@ -128,7 +128,7 @@ export function SecondaryButton({
     if (disabled || loading) return;
     Animated.spring(pressAnim, {
       toValue: 1,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
       tension: 300,
       friction: 20,
     }).start();
@@ -137,7 +137,7 @@ export function SecondaryButton({
   const handlePressOut = () => {
     Animated.spring(pressAnim, {
       toValue: 0,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== "web",
       tension: 300,
       friction: 20,
     }).start();
@@ -213,11 +213,11 @@ export function IconButton({
 
   const handlePressIn = () => {
     if (disabled) return;
-    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, tension: 300, friction: 20 }).start();
+    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: Platform.OS !== "web", tension: 300, friction: 20 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(pressAnim, { toValue: 0, useNativeDriver: true, tension: 300, friction: 20 }).start();
+    Animated.spring(pressAnim, { toValue: 0, useNativeDriver: Platform.OS !== "web", tension: 300, friction: 20 }).start();
   };
 
   const translateY = pressAnim.interpolate({

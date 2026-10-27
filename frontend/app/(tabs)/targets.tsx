@@ -21,6 +21,7 @@ import {
   deleteSavingsTarget,
   getSavingsTargets,
   updateSavingsTarget,
+  addManualContribution,
 } from "../../src/api/savingsTargets";
 import { useAuthStore } from "../../src/store/authStore";
 import { FadeInView } from "../../src/components/animated";
@@ -39,25 +40,28 @@ import {
 export default function TargetsScreen() {
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
+  const authIsLoading = useAuthStore((state) => state.isLoading);
 
   const {
     data: goals = [],
     isLoading,
     isRefetching,
     isError,
+    error: targetsError,
     refetch,
   } = useQuery({
     queryKey: ["savingsTargets"],
     queryFn: getSavingsTargets,
-    enabled: !!user,
     retry: 1,
   });
-  const { data: summary } = useQuery({
+  const { data: summary, isRefetching: isSummaryRefetching, refetch: refetchSummary } = useQuery({
     queryKey: ["savingsTargets", "summary"],
     queryFn: getSavingsTargetSummary,
-    enabled: !!user,
     retry: 1,
   });
+  const refreshTargets = async () => {
+    await Promise.all([refetch(), refetchSummary()]);
+  };
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
@@ -99,12 +103,46 @@ export default function TargetsScreen() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteSavingsTarget,
+  const contributionMutation = useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) => addManualContribution(id, amount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["savingsTargets"] });
       queryClient.invalidateQueries({ queryKey: ["savingsTargets", "summary"] });
+      closeModal();
+    },
+    onError: (err: any) => {
+      Alert.alert("Could not add amount", err?.message || "Please try again.");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteSavingsTarget,
+    onSuccess: (_data, deletedId) => {
+      queryClient.setQueryData(
+        ["savingsTargets"],
+        (current: typeof goals) => current.filter((target) => target.id !== deletedId),
+      );
+      queryClient.setQueryData(
+        ["savingsTargets", "summary"],
+        (current: typeof summary) => current
+          ? {
+              ...current,
+              active_targets: Math.max(
+                0,
+                current.active_targets - (goals.some((target) => target.id === deletedId) ? 1 : 0),
+              ),
+            }
+          : current,
+      );
       setDeleteConfirmTargetId(null);
+      void queryClient.invalidateQueries({
+        queryKey: ["savingsTargets"],
+        refetchType: "none",
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["savingsTargets", "summary"],
+        refetchType: "none",
+      });
     },
     onError: (err: any) => {
       Alert.alert("Error", err?.message || "Could not delete target.");
@@ -143,7 +181,7 @@ export default function TargetsScreen() {
     setIsUpdatingSavedOnly(true);
     setName(goal.name);
     setTargetAmount(String(goal.target_amount));
-    setSavedAmount(String(goal.saved_amount));
+    setSavedAmount("");
     setModalVisible(true);
   };
 
@@ -152,14 +190,11 @@ export default function TargetsScreen() {
     const savedNum = Number(savedAmount) || 0;
 
     if (isUpdatingSavedOnly && editingTargetId) {
-      if (!Number.isFinite(savedNum) || savedNum < 0) {
-        Alert.alert("Validation", "Please enter a valid saved amount.");
+      if (!Number.isFinite(savedNum) || savedNum <= 0) {
+        Alert.alert("Validation", "Enter an amount greater than zero to add to this target.");
         return;
       }
-      updateMutation.mutate({
-        id: editingTargetId,
-        payload: { saved_amount: savedNum },
-      });
+      contributionMutation.mutate({ id: editingTargetId, amount: savedNum });
       return;
     }
 
@@ -190,7 +225,7 @@ export default function TargetsScreen() {
     }
   };
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending || contributionMutation.isPending;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -214,8 +249,8 @@ export default function TargetsScreen() {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
-            onRefresh={refetch}
+            refreshing={isRefetching || isSummaryRefetching}
+            onRefresh={refreshTargets}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
@@ -254,12 +289,12 @@ export default function TargetsScreen() {
           </View>
         </FadeInView>
 
-        {isLoading ? (
+        {authIsLoading && goals.length === 0 ? (
           <LoadingSkeleton count={3} />
-        ) : isError ? (
+        ) : isError && goals.length === 0 ? (
           <ErrorState
-            message="Could not load your savings targets."
-            onRetry={refetch}
+            message={`Could not load your savings targets. ${targetsError instanceof Error ? targetsError.message : "Check your connection and try again."}`}
+            onRetry={refreshTargets}
           />
         ) : goals.length === 0 ? (
           <EmptyState
@@ -296,14 +331,14 @@ export default function TargetsScreen() {
 
             <Text style={styles.modalTitle}>
               {isUpdatingSavedOnly
-                ? "Update Saved Amount"
+                ? "Add Amount"
                 : editingTargetId
                 ? "Edit Savings Target"
                 : "Create Savings Target"}
             </Text>
             <Text style={styles.modalSubtitle}>
               {isUpdatingSavedOnly
-                ? `Update how much you have saved so far for "${name}".`
+                ? `This amount will be added to the saved balance for "${name}".`
                 : "Set a clear financial goal to keep your spending intentional."}
             </Text>
 
@@ -329,8 +364,8 @@ export default function TargetsScreen() {
             )}
 
             <RecessedInput
-              label={isUpdatingSavedOnly ? "Current Saved Total (₹)" : "Already Saved (₹)"}
-              placeholder="0"
+              label={isUpdatingSavedOnly ? "Amount to Add (₹)" : "Already Saved (₹)"}
+              placeholder={isUpdatingSavedOnly ? "e.g. 500" : "0"}
               keyboardType="decimal-pad"
               value={savedAmount}
               onChangeText={setSavedAmount}
@@ -346,7 +381,7 @@ export default function TargetsScreen() {
                 style={styles.modalBtn}
               />
               <PrimaryButton
-                title={isSaving ? "Saving..." : isUpdatingSavedOnly ? "Update Total" : "Save Target"}
+                title={isSaving ? "Saving..." : isUpdatingSavedOnly ? "Add Amount" : "Save Target"}
                 onPress={handleSave}
                 loading={isSaving}
                 size="medium"
@@ -364,6 +399,7 @@ export default function TargetsScreen() {
         message="This savings goal will be removed. Your saved balance figures won't be altered."
         confirmText="Delete Target"
         isDestructive
+        loading={deleteMutation.isPending}
         onCancel={() => setDeleteConfirmTargetId(null)}
         onConfirm={() => {
           if (deleteConfirmTargetId) {

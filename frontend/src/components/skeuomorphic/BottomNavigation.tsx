@@ -120,11 +120,11 @@ function CenterAddButton({ onPress }: { onPress: () => void }) {
   const pressAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
-    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: true, tension: 350, friction: 18 }).start();
+    Animated.spring(pressAnim, { toValue: 1, useNativeDriver: Platform.OS !== "web", tension: 350, friction: 18 }).start();
   };
 
   const handlePressOut = () => {
-    Animated.spring(pressAnim, { toValue: 0, useNativeDriver: true, tension: 350, friction: 18 }).start();
+    Animated.spring(pressAnim, { toValue: 0, useNativeDriver: Platform.OS !== "web", tension: 350, friction: 18 }).start();
   };
 
   const scale = pressAnim.interpolate({

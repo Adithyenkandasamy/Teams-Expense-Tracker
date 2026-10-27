@@ -122,7 +122,7 @@ export function SavingsTargetCard({
           style={styles.updateBtn}
         >
           <Ionicons name="add-circle-outline" size={15} color={colors.primary} />
-          <Text style={styles.updateBtnText}>Update Saved Amount</Text>
+          <Text style={styles.updateBtnText}>Add Amount</Text>
         </TouchableOpacity>
       </View>
     </View>

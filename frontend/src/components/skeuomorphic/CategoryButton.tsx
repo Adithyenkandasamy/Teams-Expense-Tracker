@@ -62,6 +62,9 @@ export function CategoryButton({
       >
         {category}
       </Text>
+      {selected && (
+        <Ionicons name="checkmark-circle" size={14} color={colors.primary} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -137,7 +140,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   labelSelected: {
-    color: colors.primary,
+    color: colors.textPrimary,
     fontWeight: "700",
   },
 });

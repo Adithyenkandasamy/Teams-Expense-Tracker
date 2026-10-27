@@ -96,6 +96,14 @@ class Settings(BaseSettings):
                 else:
                     data["CLOUDINARY_CLOUD_NAME"] = "jgfbygec"
 
+            # Normalize DEBUG value if string like "release" or "production"
+            raw_debug = data.get("DEBUG")
+            if isinstance(raw_debug, str):
+                if raw_debug.lower() in ("release", "prod", "production", "false", "0"):
+                    data["DEBUG"] = False
+                elif raw_debug.lower() in ("debug", "dev", "development", "true", "1"):
+                    data["DEBUG"] = True
+
         return data
 
 

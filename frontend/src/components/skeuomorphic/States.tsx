@@ -63,12 +63,12 @@ export function LoadingSkeleton({ count = 3 }: { count?: number }) {
         Animated.timing(pulseAnim, {
           toValue: 0.9,
           duration: 750,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }),
         Animated.timing(pulseAnim, {
           toValue: 0.4,
           duration: 750,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== "web",
         }),
       ])
     );
@@ -126,6 +126,7 @@ export function ConfirmationDialog({
   confirmText = "Confirm",
   cancelText = "Cancel",
   isDestructive = false,
+  loading = false,
   onConfirm,
   onCancel,
 }: {
@@ -135,6 +136,7 @@ export function ConfirmationDialog({
   confirmText?: string;
   cancelText?: string;
   isDestructive?: boolean;
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -156,12 +158,14 @@ export function ConfirmationDialog({
             <SecondaryButton
               title={cancelText}
               onPress={onCancel}
+              disabled={loading}
               size="small"
               style={styles.modalActionBtn}
             />
             <PrimaryButton
               title={confirmText}
               onPress={onConfirm}
+              loading={loading}
               size="small"
               style={[
                 styles.modalActionBtn,
@@ -322,4 +326,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-

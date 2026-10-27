@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -201,10 +201,15 @@ async def delete_savings_target(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    target = await _get_owned_target(target_id, current_user.id, db, lock=True)
+    target = await _get_owned_target(target_id, current_user.id, db)
     if target.funding_mode == "WALLET":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Archive wallet-linked targets after releasing their allocation",
         )
-    await db.delete(target)
+    await db.execute(
+        delete(SavingsTarget).where(
+            SavingsTarget.id == target_id,
+            SavingsTarget.user_id == current_user.id,
+        )
+    )
