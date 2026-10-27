@@ -126,7 +126,7 @@ export default function CreateGroupScreen() {
                 label="Description (Optional)"
                 value={description}
                 onChangeText={setDescription}
-                placeholder="e.g. Shared rent, bills, and groceries"
+                placeholder="e.g. Rent and groceries"
                 leadingIcon="document-text-outline"
                 multiline
                 numberOfLines={3}
