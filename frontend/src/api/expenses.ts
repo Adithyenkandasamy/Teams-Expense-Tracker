@@ -11,6 +11,28 @@ export async function getGroupExpenses(groupId: string): Promise<Expense[]> {
   return response.data;
 }
 
+export async function getMyExpenses(): Promise<Expense[]> {
+  const response = await apiClient.get<Expense[]>("/expenses");
+  return response.data;
+}
+
+export async function getUserExpenses(groups?: { id: string }[]): Promise<Expense[]> {
+  try {
+    const response = await apiClient.get<Expense[]>("/expenses");
+    return response.data;
+  } catch (err: any) {
+    // Graceful fallback for backwards compatibility if /expenses is unavailable
+    if (groups && groups.length > 0) {
+      const promises = groups.map((g) =>
+        getGroupExpenses(g.id).catch(() => [] as Expense[])
+      );
+      const res = await Promise.all(promises);
+      return res.flat();
+    }
+    return [];
+  }
+}
+
 export async function getExpenseDetail(expenseId: string): Promise<Expense> {
   const response = await apiClient.get<Expense>(`/expenses/${expenseId}`);
   return response.data;

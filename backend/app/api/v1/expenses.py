@@ -66,6 +66,20 @@ async def list_group_expenses(
 
 
 @router.get(
+    "/expenses",
+    response_model=list[ExpenseResponse],
+)
+async def list_user_expenses(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[ExpenseResponse]:
+    """List all expenses for all groups the current user belongs to."""
+    expense_service = ExpenseService(db)
+    expenses = await expense_service.get_user_expenses(current_user.id)
+    return [ExpenseResponse.model_validate(e) for e in expenses]
+
+
+@router.get(
     "/expenses/{expense_id}",
     response_model=ExpenseResponse,
 )

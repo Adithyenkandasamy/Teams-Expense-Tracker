@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "../../src/store/authStore";
 import { getGroups } from "../../src/api/groups";
-import { getGroupExpenses } from "../../src/api/expenses";
+import { getMyExpenses } from "../../src/api/expenses";
 import { colors, spacing, typography } from "../../src/theme/colors";
 import { formatINR } from "../../src/utils/formatters";
 import { Avatar } from "../../src/components/common/Avatar";
@@ -22,7 +22,6 @@ import { ExpenseCard } from "../../src/components/expense/ExpenseCard";
 import { GroupCard } from "../../src/components/group/GroupCard";
 import { LoadingState } from "../../src/components/common/LoadingState";
 import { EmptyState } from "../../src/components/common/EmptyState";
-import { Expense } from "../../src/types/models";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,22 +37,15 @@ export default function HomeScreen() {
     queryFn: getGroups,
   });
 
-  // Fetch expenses for all groups
+  // Fetch expenses across all groups in one request
   const {
     data: allExpenses = [],
     isLoading: loadingExpenses,
     refetch: refetchExpenses,
   } = useQuery({
-    queryKey: ["allExpenses", groups.map((g) => g.id)],
-    queryFn: async () => {
-      if (!groups || groups.length === 0) return [];
-      const expensePromises = groups.map((g) =>
-        getGroupExpenses(g.id).catch(() => [] as Expense[])
-      );
-      const results = await Promise.all(expensePromises);
-      return results.flat();
-    },
-    enabled: groups.length > 0,
+    queryKey: ["allExpenses"],
+    queryFn: getMyExpenses,
+    enabled: !!user,
   });
 
   const isRefreshing = loadingGroups || loadingExpenses;

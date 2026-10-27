@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload
 
 from app.core.exceptions import NotFoundError
 from app.models.enums import ExpenseStatus, PaymentStatus
@@ -34,45 +35,51 @@ class BalanceService:
         PAID splits are settled.
         """
         # Fetch group
-        result = await self.db.execute(select(Group).where(Group.id == group_id))
+        result = await self.db.execute(
+            select(Group)
+            .options(
+                noload(Group.members),
+                noload(Group.creator),
+                noload(Group.group_leader),
+                noload(Group.expenses),
+            )
+            .where(Group.id == group_id)
+        )
         group = result.scalar_one_or_none()
         if group is None:
             raise NotFoundError("Group not found")
 
-        # Fetch all non-closed expenses in this group
+        # Fetch all outstanding splits in one query rather than one query per expense.
         result = await self.db.execute(
-            select(Expense).where(
+            select(
+                Expense.paid_by,
+                ExpenseSplit.user_id,
+                ExpenseSplit.amount,
+            )
+            .join(ExpenseSplit, ExpenseSplit.expense_id == Expense.id)
+            .where(
                 Expense.group_id == group_id,
                 Expense.status != ExpenseStatus.CLOSED.value,
+                ExpenseSplit.status.in_(
+                    (
+                        PaymentStatus.PENDING.value,
+                        PaymentStatus.PAYMENT_SUBMITTED.value,
+                        PaymentStatus.REJECTED.value,
+                    )
+                ),
             )
         )
-        expenses = list(result.scalars().all())
 
         # user_id -> net amount (positive = they owe current_user)
         balance_map: dict[uuid.UUID, Decimal] = defaultdict(Decimal)
 
-        for expense in expenses:
-            # Fetch splits for this expense
-            result = await self.db.execute(
-                select(ExpenseSplit).where(ExpenseSplit.expense_id == expense.id)
-            )
-            splits = list(result.scalars().all())
-
-            for split in splits:
-                is_outstanding = split.status in (
-                    PaymentStatus.PENDING.value,
-                    PaymentStatus.PAYMENT_SUBMITTED.value,
-                    PaymentStatus.REJECTED.value,
-                )
-                if not is_outstanding:
-                    continue
-
-                if expense.paid_by == current_user.id and split.user_id != current_user.id:
-                    # Someone else owes the current user
-                    balance_map[split.user_id] += split.amount
-                elif expense.paid_by != current_user.id and split.user_id == current_user.id:
-                    # Current user owes the payer
-                    balance_map[expense.paid_by] -= split.amount
+        for paid_by, split_user_id, amount in result.all():
+            if paid_by == current_user.id and split_user_id != current_user.id:
+                # Someone else owes the current user
+                balance_map[split_user_id] += amount
+            elif paid_by != current_user.id and split_user_id == current_user.id:
+                # Current user owes the payer
+                balance_map[paid_by] -= amount
 
         # Build response
         total_owed_to_you = Decimal("0")
@@ -81,13 +88,11 @@ class BalanceService:
 
         # Fetch user names
         member_result = await self.db.execute(
-            select(GroupMember).where(GroupMember.group_id == group_id)
+            select(GroupMember.user_id, User.name)
+            .join(User, User.id == GroupMember.user_id)
+            .where(GroupMember.group_id == group_id)
         )
-        members = list(member_result.scalars().all())
-        user_map: dict[uuid.UUID, str] = {}
-        for member in members:
-            if member.user:
-                user_map[member.user_id] = member.user.name
+        user_map = {user_id: name for user_id, name in member_result.all()}
 
         for user_id, amount in balance_map.items():
             if amount > 0:

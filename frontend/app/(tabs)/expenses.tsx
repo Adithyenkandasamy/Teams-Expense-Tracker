@@ -12,15 +12,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { getGroups } from "../../src/api/groups";
-import { getGroupExpenses } from "../../src/api/expenses";
+import { getMyExpenses } from "../../src/api/expenses";
 import { useAuthStore } from "../../src/store/authStore";
 import { colors, spacing, typography } from "../../src/theme/colors";
 import { Header } from "../../src/components/common/Header";
 import { ExpenseCard } from "../../src/components/expense/ExpenseCard";
 import { LoadingState } from "../../src/components/common/LoadingState";
 import { EmptyState } from "../../src/components/common/EmptyState";
-import { Expense } from "../../src/types/models";
 
 type FilterType = "ALL" | "YOU_OWE" | "LEADER";
 
@@ -29,29 +27,14 @@ export default function ExpensesScreen() {
   const currentUserId = useAuthStore((state) => state.user?.id);
   const [activeFilter, setActiveFilter] = useState<FilterType>("ALL");
 
-  const { data: groups = [] } = useQuery({
-    queryKey: ["groups"],
-    queryFn: getGroups,
-  });
-
   const {
     data: expenses = [],
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["allExpenses", groups.map((g) => g.id)],
-    queryFn: async () => {
-      if (!groups || groups.length === 0) return [];
-      const promises = groups.map((g) =>
-        getGroupExpenses(g.id).catch(() => [] as Expense[])
-      );
-      const results = await Promise.all(promises);
-      const all = results.flat();
-      return all.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    },
-    enabled: groups.length > 0,
+    queryKey: ["allExpenses"],
+    queryFn: getMyExpenses,
+    enabled: !!currentUserId,
   });
 
   const filteredExpenses = useMemo(() => {

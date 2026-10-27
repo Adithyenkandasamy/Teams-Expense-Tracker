@@ -8,6 +8,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload
 
 from app.core.database import get_db
 from app.core.exceptions import UnauthorizedError
@@ -44,7 +45,9 @@ async def get_current_user(
 
     # Find existing user
     result = await db.execute(
-        select(User).where(User.firebase_uid == firebase_uid)
+        select(User)
+        .options(noload(User.group_memberships), noload(User.device_tokens))
+        .where(User.firebase_uid == firebase_uid)
     )
     user = result.scalar_one_or_none()
 

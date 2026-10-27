@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://teams-expense-tracker.vercel.app",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAnd88UIe3G0OQQMuYazOur9Ar_QuCXJIw",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "team-expense-tracker-95ba4",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "team-expense-tracker-95ba4.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "team-expense-tracker-95ba4.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "888308901041",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:888308901041:android:6ac4df1c848d49ab44ae90"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
+

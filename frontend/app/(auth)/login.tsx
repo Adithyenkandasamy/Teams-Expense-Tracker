@@ -155,7 +155,7 @@ export default function LoginScreen() {
           setLoading(false);
         });
     } else if (response?.type === "error") {
-      setErrorMsg(response.error?.message || "Google sign-in was cancelled or failed.");
+      setErrorMsg((response.error as any)?.message || "Google sign-in was cancelled or failed.");
     }
   }, [response]);
 

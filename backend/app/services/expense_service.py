@@ -6,12 +6,13 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import noload, selectinload
 
 from app.core.config import get_settings
 from app.core.exceptions import BadRequestError, ForbiddenError, NotFoundError
 from app.models.enums import ExpenseStatus, PaymentStatus
 from app.models.expense import DeadlineHistory, Expense, ExpenseSplit, PaymentProof
+from app.models.group import GroupMember
 from app.models.user import User
 from app.schemas.expense import ExpenseCreate
 from app.services.group_service import GroupService
@@ -35,6 +36,28 @@ def _split_amount_equally(total: Decimal, num_users: int) -> list[Decimal]:
         cents = base_cents + (1 if i < remainder else 0)
         amounts.append(Decimal(cents) / Decimal(100))
     return amounts
+
+
+def _expense_response_load_options():
+    """Load fields returned by expense APIs, skipping unused relationships."""
+    split_user = selectinload(ExpenseSplit.user).options(
+        noload(User.group_memberships), noload(User.device_tokens)
+    )
+    return (
+        noload(Expense.group),
+        noload(Expense.deadline_history),
+        selectinload(Expense.splits).options(
+            split_user,
+            noload(ExpenseSplit.payment_proofs),
+            noload(ExpenseSplit.expense),
+        ),
+        selectinload(Expense.creator).options(
+            noload(User.group_memberships), noload(User.device_tokens)
+        ),
+        selectinload(Expense.payer).options(
+            noload(User.group_memberships), noload(User.device_tokens)
+        ),
+    )
 
 
 class ExpenseService:
@@ -61,9 +84,16 @@ class ExpenseService:
                 "Expense creator must be the person who paid the bill (created_by == paid_by)"
             )
 
-        # Verify all split users are group members
-        for user_id in data.split_between:
-            await self.group_service.verify_membership(group_id, user_id)
+        # Verify all split users with one query instead of one query per user.
+        member_result = await self.db.execute(
+            select(GroupMember.user_id).where(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id.in_(data.split_between),
+            )
+        )
+        member_ids = set(member_result.scalars().all())
+        if member_ids != set(data.split_between):
+            raise ForbiddenError("All split users must be members of this group")
 
         expense = Expense(
             group_id=group_id,
@@ -107,12 +137,7 @@ class ExpenseService:
         """Get an expense by ID or raise NotFoundError."""
         result = await self.db.execute(
             select(Expense)
-            .options(
-                selectinload(Expense.splits).selectinload(ExpenseSplit.user),
-                selectinload(Expense.splits).selectinload(ExpenseSplit.payment_proofs),
-                selectinload(Expense.creator),
-                selectinload(Expense.payer),
-            )
+            .options(*_expense_response_load_options())
             .where(Expense.id == expense_id)
         )
         expense = result.scalar_one_or_none()
@@ -124,13 +149,37 @@ class ExpenseService:
         """Get all expenses for a group."""
         result = await self.db.execute(
             select(Expense)
+            .options(*_expense_response_load_options())
+            .where(Expense.group_id == group_id)
+            .order_by(Expense.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get_user_expenses(self, user_id: uuid.UUID) -> list[Expense]:
+        """Get expenses from every group the user belongs to."""
+        result = await self.db.execute(
+            select(Expense)
+            .join(GroupMember, GroupMember.group_id == Expense.group_id)
+            .where(GroupMember.user_id == user_id)
+            .options(*_expense_response_load_options())
+            .order_by(Expense.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def get_user_expenses(self, user_id: uuid.UUID) -> list[Expense]:
+        """Get all expenses across all groups the user belongs to in a single query."""
+        from app.models.group import GroupMember
+
+        user_group_ids_subq = select(GroupMember.group_id).where(GroupMember.user_id == user_id)
+        result = await self.db.execute(
+            select(Expense)
             .options(
                 selectinload(Expense.splits).selectinload(ExpenseSplit.user),
                 selectinload(Expense.splits).selectinload(ExpenseSplit.payment_proofs),
                 selectinload(Expense.creator),
                 selectinload(Expense.payer),
             )
-            .where(Expense.group_id == group_id)
+            .where(Expense.group_id.in_(user_group_ids_subq))
             .order_by(Expense.created_at.desc())
         )
         return list(result.scalars().all())
@@ -140,8 +189,11 @@ class ExpenseService:
         result = await self.db.execute(
             select(ExpenseSplit)
             .options(
-                selectinload(ExpenseSplit.user),
-                selectinload(ExpenseSplit.payment_proofs),
+                selectinload(ExpenseSplit.user).options(
+                    noload(User.group_memberships), noload(User.device_tokens)
+                ),
+                noload(ExpenseSplit.payment_proofs),
+                noload(ExpenseSplit.expense),
             )
             .where(ExpenseSplit.id == split_id)
         )

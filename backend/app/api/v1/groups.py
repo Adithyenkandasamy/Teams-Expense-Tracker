@@ -48,9 +48,9 @@ async def list_groups(
 ) -> list[GroupResponse]:
     """List all groups the current user belongs to."""
     service = GroupService(db)
-    groups = await service.get_user_groups(current_user)
+    groups = await service.get_user_groups_with_counts(current_user)
     result = []
-    for group in groups:
+    for group, member_count in groups:
         result.append(
             GroupResponse(
                 id=group.id,
@@ -60,7 +60,7 @@ async def list_groups(
                 created_by=group.created_by,
                 created_at=group.created_at,
                 updated_at=group.updated_at,
-                member_count=len(group.members) if group.members else 0,
+                member_count=member_count,
             )
         )
     return result
