@@ -17,7 +17,7 @@ from app.schemas.group import GroupCreate
 
 def _generate_invite_code() -> str:
     """Generate a URL-safe invite code."""
-    return secrets.token_urlsafe(8)[:12].upper()
+    return secrets.token_urlsafe(8)[:8].upper()
 
 
 class GroupService:
