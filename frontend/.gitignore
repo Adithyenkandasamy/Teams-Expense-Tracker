@@ -40,7 +40,6 @@ yarn-error.*
 /ios
 /android
 
-*.png
-
 # Expo app icons and splash assets must be included in EAS build uploads.
-!/assets/*.png
+!assets/
+!assets/**

@@ -1,0 +1,19 @@
+# Dependencies and build outputs
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tsbuildinfo
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.pem
+.playwright-mcp/
+
+# Keep app icons, images, and config for cloud builds
+!assets/
+!assets/**
+!google-services.json

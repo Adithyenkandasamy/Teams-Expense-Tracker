@@ -42,10 +42,22 @@ htmlcov/
 .coverage
 backend/.coverage
 
-# OS
+# OS & Testing Artifacts
 .DS_Store
 Thumbs.db
-*.png
 *.yml
-.playwright-mcp
+.playwright-mcp/
+/*_screenshot*.png
+/*_verified.png
+/*_new_arch.png
+/*_fixed.png
+/*_centered.png
+/*_filled.png
+/join_code_inspect.png
+/skeuomorphic_*.png
+/unified_*.png
+
+# App Icons & Assets (must be included for builds)
+!frontend/assets/*.png
+!assets/*.png
 
